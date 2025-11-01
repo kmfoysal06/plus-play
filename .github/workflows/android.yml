@@ -25,7 +25,7 @@ jobs:
       run: chmod +x gradlew
 
     - name: Build with Gradle
-      run: ./gradlew assembleRelease
+      run: ./gradlew assembleRelease --stacktrace
 
     - name: Generate demo keystore
       run: |
@@ -35,8 +35,12 @@ jobs:
 
     - name: Sign APK
       run: |
-        $ANDROID_HOME/build-tools/*/apksigner sign --ks demo-keystore.jks \
-          --ks-key-alias demo-key --ks-pass pass:demo123 --key-pass pass:demo123 \
+        BUILD_TOOLS_VERSION=$(ls $ANDROID_HOME/build-tools | sort -V | tail -n 1)
+        $ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION/apksigner sign \
+          --ks demo-keystore.jks \
+          --ks-key-alias demo-key \
+          --ks-pass pass:demo123 \
+          --key-pass pass:demo123 \
           --out app/build/outputs/apk/release/plus-play-signed.apk \
           app/build/outputs/apk/release/app-release-unsigned.apk
 

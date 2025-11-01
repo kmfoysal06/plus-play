@@ -136,37 +136,41 @@ class MainActivity : AppCompatActivity() {
             MediaStore.Video.Media.DURATION
         )
 
-        val selection = "${MediaStore.Video.Media.DATA} LIKE ?"
-        val videoExtensions = arrayOf("%.mp4", "%.mkv", "%.avi", "%.mov")
-        
-        for (extension in videoExtensions) {
-            val selectionArgs = arrayOf(extension)
-            
-            val cursor: Cursor? = contentResolver.query(
-                MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
-                projection,
-                selection,
-                selectionArgs,
-                "${MediaStore.Video.Media.DISPLAY_NAME} ASC"
-            )
+        // Query all videos, then filter by extension
+        val cursor: Cursor? = contentResolver.query(
+            MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+            projection,
+            null,
+            null,
+            "${MediaStore.Video.Media.DISPLAY_NAME} ASC"
+        )
 
-            cursor?.use {
-                val idColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
-                val nameColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
-                val dataColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
-                val durationColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
+        val videoExtensions = setOf(".mp4", ".mkv", ".avi", ".mov")
+        val videoSet = mutableSetOf<String>() // To avoid duplicates
 
-                while (it.moveToNext()) {
-                    val name = it.getString(nameColumn)
-                    val path = it.getString(dataColumn)
-                    val duration = it.getLong(durationColumn)
-                    
+        cursor?.use {
+            val nameColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
+            val dataColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
+            val durationColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
+
+            while (it.moveToNext()) {
+                val name = it.getString(nameColumn)
+                val path = it.getString(dataColumn)
+                val duration = it.getLong(durationColumn)
+                
+                // Check if file has a supported extension
+                val hasValidExtension = videoExtensions.any { ext -> 
+                    path.lowercase().endsWith(ext)
+                }
+                
+                if (hasValidExtension && !videoSet.contains(path)) {
+                    videoSet.add(path)
                     videos.add(VideoFile(name, path, duration))
                 }
             }
         }
         
-        // Sort videos by name
+        // Sort videos by name (case-insensitive)
         videos.sortBy { it.name.lowercase() }
     }
 
