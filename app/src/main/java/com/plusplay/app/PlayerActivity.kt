@@ -3,14 +3,19 @@ package com.plusplay.app
 import android.content.pm.ActivityInfo
 import android.media.MediaPlayer
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.View
+import android.view.WindowInsetsController
 import android.view.WindowManager
 import android.widget.VideoView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GestureDetectorCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import java.io.File
 import kotlin.math.abs
 
@@ -109,7 +114,7 @@ class PlayerActivity : AppCompatActivity() {
             mediaPlayer.start()
             isPlaying = true
             
-            // Enable looping
+            // Disable looping - video ends and closes player
             mediaPlayer.isLooping = false
         }
 
@@ -150,22 +155,47 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun seekRelative(milliseconds: Int) {
         val currentPosition = videoView.currentPosition
-        val newPosition = (currentPosition + milliseconds).coerceIn(0, videoView.duration)
-        videoView.seekTo(newPosition)
+        val duration = videoView.duration
+        
+        // Only seek if duration is available
+        if (duration > 0) {
+            val newPosition = (currentPosition + milliseconds).coerceIn(0, duration)
+            videoView.seekTo(newPosition)
+        }
     }
 
     private fun toggleSystemUI() {
-        val decorView = window.decorView
-        val currentVisibility = decorView.systemUiVisibility
-        
-        if (currentVisibility and View.SYSTEM_UI_FLAG_FULLSCREEN == 0) {
-            // Hide system UI
-            decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_FULLSCREEN
-                    or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                    or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // Use WindowInsetsController for API 30+
+            val controller = window.insetsController
+            if (controller != null) {
+                val systemBars = android.view.WindowInsets.Type.systemBars()
+                if (window.decorView.rootWindowInsets?.isVisible(systemBars) == true) {
+                    controller.hide(systemBars)
+                    controller.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                } else {
+                    controller.show(systemBars)
+                }
+            }
         } else {
-            // Show system UI
-            decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
+            // Use deprecated method for older API levels
+            @Suppress("DEPRECATION")
+            val decorView = window.decorView
+            @Suppress("DEPRECATION")
+            val currentVisibility = decorView.systemUiVisibility
+            
+            @Suppress("DEPRECATION")
+            if (currentVisibility and View.SYSTEM_UI_FLAG_FULLSCREEN == 0) {
+                // Hide system UI
+                @Suppress("DEPRECATION")
+                decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_FULLSCREEN
+                        or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
+            } else {
+                // Show system UI
+                @Suppress("DEPRECATION")
+                decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
+            }
         }
     }
 
