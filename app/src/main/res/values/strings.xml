@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Plus Play</string>
+    <string name="no_videos_found">No videos found</string>
+    <string name="permission_required">Storage permission is required to list videos</string>
+    <string name="grant_permission">Grant Permission</string>
+    <string name="loading">Loading videos...</string>
+</resources>
