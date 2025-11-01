@@ -75,13 +75,11 @@ class PlayerActivity : AppCompatActivity() {
             }
 
             override fun onFling(
-                e1: MotionEvent?,
+                e1: MotionEvent,
                 e2: MotionEvent,
                 velocityX: Float,
                 velocityY: Float
             ): Boolean {
-                if (e1 == null) return false
-                
                 val diffX = e2.x - e1.x
                 val diffY = e2.y - e1.y
                 
