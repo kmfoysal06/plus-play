@@ -157,8 +157,8 @@ class PlayerActivity : AppCompatActivity() {
         val currentPosition = videoView.currentPosition
         val duration = videoView.duration
         
-        // Only seek if duration is available
-        if (duration > 0) {
+        // Only seek if both duration and position are available
+        if (duration > 0 && currentPosition >= 0) {
             val newPosition = (currentPosition + milliseconds).coerceIn(0, duration)
             videoView.seekTo(newPosition)
         }
@@ -166,7 +166,30 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun toggleSystemUI() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            // Use WindowInsetsController for API 30+
+            toggleSystemUIModern()
+        } else {
+            toggleSystemUILegacy()
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun toggleSystemUILegacy() {
+        val decorView = window.decorView
+        val currentVisibility = decorView.systemUiVisibility
+        
+        if (currentVisibility and View.SYSTEM_UI_FLAG_FULLSCREEN == 0) {
+            // Hide system UI
+            decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_FULLSCREEN
+                    or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
+        } else {
+            // Show system UI
+            decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
+        }
+    }
+
+    private fun toggleSystemUIModern() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val controller = window.insetsController
             if (controller != null) {
                 val systemBars = android.view.WindowInsets.Type.systemBars()
@@ -176,25 +199,6 @@ class PlayerActivity : AppCompatActivity() {
                 } else {
                     controller.show(systemBars)
                 }
-            }
-        } else {
-            // Use deprecated method for older API levels
-            @Suppress("DEPRECATION")
-            val decorView = window.decorView
-            @Suppress("DEPRECATION")
-            val currentVisibility = decorView.systemUiVisibility
-            
-            @Suppress("DEPRECATION")
-            if (currentVisibility and View.SYSTEM_UI_FLAG_FULLSCREEN == 0) {
-                // Hide system UI
-                @Suppress("DEPRECATION")
-                decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_FULLSCREEN
-                        or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                        or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
-            } else {
-                // Show system UI
-                @Suppress("DEPRECATION")
-                decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
             }
         }
     }

@@ -20,14 +20,17 @@ import androidx.recyclerview.widget.RecyclerView
 
 class MainActivity : AppCompatActivity() {
 
+    companion object {
+        private val SUPPORTED_VIDEO_EXTENSIONS = setOf(".mp4", ".mkv", ".avi", ".mov")
+        private const val PERMISSION_REQUEST_CODE = 100
+    }
+
     private lateinit var recyclerView: RecyclerView
     private lateinit var emptyView: TextView
     private lateinit var permissionLayout: View
     private lateinit var grantPermissionButton: Button
     private lateinit var progressBar: ProgressBar
     private val videos = mutableListOf<VideoFile>()
-    
-    private val PERMISSION_REQUEST_CODE = 100
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -145,7 +148,6 @@ class MainActivity : AppCompatActivity() {
             "${MediaStore.Video.Media.DISPLAY_NAME} ASC"
         )
 
-        val videoExtensions = setOf(".mp4", ".mkv", ".avi", ".mov")
         val videoSet = mutableSetOf<String>() // To avoid duplicates
 
         cursor?.use {
@@ -159,7 +161,7 @@ class MainActivity : AppCompatActivity() {
                 val duration = it.getLong(durationColumn)
                 
                 // Check if file has a supported extension
-                val hasValidExtension = videoExtensions.any { ext -> 
+                val hasValidExtension = SUPPORTED_VIDEO_EXTENSIONS.any { ext -> 
                     path.lowercase().endsWith(ext)
                 }
                 
