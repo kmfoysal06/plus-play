@@ -41,11 +41,14 @@ class PlayerActivity : AppCompatActivity() {
     private lateinit var btnForward: ImageButton
     private lateinit var btnRotate: ImageButton
     private lateinit var btnBack: ImageButton
+    private lateinit var btnLock: ImageButton
+    private lateinit var lockedIndicator: ImageButton
     
     private var isPlaying = true
     private var videoPath: String? = null
     private var playlist: ArrayList<VideoFile>? = null
     private var currentVideoIndex = 0
+    private var isLocked = false
     
     private val handler = Handler(Looper.getMainLooper())
     private val updateSeekBarRunnable = object : Runnable {
@@ -102,6 +105,8 @@ class PlayerActivity : AppCompatActivity() {
         btnForward = findViewById(R.id.btnForward)
         btnRotate = findViewById(R.id.btnRotate)
         btnBack = findViewById(R.id.btnBack)
+        btnLock = findViewById(R.id.btnLock)
+        lockedIndicator = findViewById(R.id.lockedIndicator)
         
         // Set video title
         videoPath?.let { path ->
@@ -128,6 +133,12 @@ class PlayerActivity : AppCompatActivity() {
         
         // Back button
         btnBack.setOnClickListener { finish() }
+        
+        // Lock button
+        btnLock.setOnClickListener { toggleLock() }
+        
+        // Locked indicator (to unlock)
+        lockedIndicator.setOnClickListener { toggleLock() }
         
         // SeekBar
         seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -167,6 +178,8 @@ class PlayerActivity : AppCompatActivity() {
         gestureDetector = GestureDetectorCompat(this, object : GestureDetector.SimpleOnGestureListener() {
             
             override fun onDoubleTap(e: MotionEvent): Boolean {
+                if (isLocked) return false
+                
                 val screenWidth = videoView.width
                 val x = e.x
                 val middle = screenWidth / 3f
@@ -194,6 +207,8 @@ class PlayerActivity : AppCompatActivity() {
                 velocityX: Float,
                 velocityY: Float
             ): Boolean {
+                if (isLocked) return false
+                
                 val diffX = e2.x - e1.x
                 val diffY = e2.y - e1.y
                 
@@ -211,8 +226,17 @@ class PlayerActivity : AppCompatActivity() {
             }
 
             override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
-                // Toggle controls visibility
-                toggleControls()
+                if (isLocked) {
+                    // When locked, only show/hide the lock indicator
+                    lockedIndicator.visibility = if (lockedIndicator.visibility == View.VISIBLE) {
+                        View.GONE
+                    } else {
+                        View.VISIBLE
+                    }
+                } else {
+                    // Toggle controls visibility
+                    toggleControls()
+                }
                 return true
             }
         })
@@ -397,6 +421,20 @@ class PlayerActivity : AppCompatActivity() {
     private fun scheduleHideControls() {
         handler.removeCallbacks(hideControlsRunnable)
         handler.postDelayed(hideControlsRunnable, 3000)
+    }
+    
+    private fun toggleLock() {
+        isLocked = !isLocked
+        
+        if (isLocked) {
+            // Hide controls and show lock indicator
+            hideControls()
+            lockedIndicator.visibility = View.VISIBLE
+        } else {
+            // Show controls and hide lock indicator
+            lockedIndicator.visibility = View.GONE
+            showControls()
+        }
     }
 
     private fun toggleSystemUI() {

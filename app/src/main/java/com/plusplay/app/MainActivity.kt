@@ -15,6 +15,7 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import java.io.File
@@ -47,7 +48,17 @@ class MainActivity : AppCompatActivity() {
         grantPermissionButton = findViewById(R.id.grantPermissionButton)
         progressBar = findViewById(R.id.progressBar)
 
-        recyclerView.layoutManager = LinearLayoutManager(this)
+        // Use GridLayoutManager with span size lookup for mixed content
+        val gridLayoutManager = GridLayoutManager(this, 3)
+        gridLayoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
+            override fun getSpanSize(position: Int): Int {
+                return when (folderAdapter.getItemViewType(position)) {
+                    0, 1 -> 3  // Back and Folder items take full width (all 3 spans)
+                    else -> 1   // Video items take 1 span (grid layout)
+                }
+            }
+        }
+        recyclerView.layoutManager = gridLayoutManager
         
         folderAdapter = FolderAdapter(emptyList()) { item ->
             handleItemClick(item)
@@ -91,7 +102,7 @@ class MainActivity : AppCompatActivity() {
         
         // Add back button if not at root
         if (folderStack.isNotEmpty()) {
-            items.add(ListItem.BackItem("⬆️ .."))
+            items.add(ListItem.BackItem(".."))
         }
         
         // Add subfolders first

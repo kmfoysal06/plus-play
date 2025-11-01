@@ -34,7 +34,7 @@ class FolderAdapter(
 
     class VideoViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val videoName: TextView = view.findViewById(R.id.videoName)
-        val videoPath: TextView = view.findViewById(R.id.videoPath)
+        val videoDuration: TextView = view.findViewById(R.id.videoDuration)
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -71,19 +71,19 @@ class FolderAdapter(
         when (holder) {
             is BackViewHolder -> {
                 val backItem = item as ListItem.BackItem
-                holder.folderName.text = backItem.text
+                holder.folderName.text = ".. (Go back)"
                 holder.itemView.setOnClickListener { onItemClick(item) }
             }
             is FolderViewHolder -> {
                 val folderItem = item as ListItem.FolderItem
-                holder.folderName.text = "📁 ${folderItem.folder.name}"
+                holder.folderName.text = folderItem.folder.name
                 holder.videoCount.text = "${folderItem.folder.videos.size + folderItem.folder.subFolders.size} items"
                 holder.itemView.setOnClickListener { onItemClick(item) }
             }
             is VideoViewHolder -> {
                 val videoItem = item as ListItem.VideoItem
                 holder.videoName.text = videoItem.video.name
-                holder.videoPath.text = videoItem.video.path
+                holder.videoDuration.text = formatDuration(videoItem.video.duration)
                 holder.itemView.setOnClickListener { onItemClick(item) }
             }
         }
@@ -94,5 +94,12 @@ class FolderAdapter(
     fun updateItems(newItems: List<ListItem>) {
         items = newItems
         notifyDataSetChanged()
+    }
+    
+    private fun formatDuration(milliseconds: Long): String {
+        val seconds = (milliseconds / 1000).toInt()
+        val minutes = seconds / 60
+        val remainingSeconds = seconds % 60
+        return String.format("%02d:%02d", minutes, remainingSeconds)
     }
 }
