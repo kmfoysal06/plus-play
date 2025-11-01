@@ -17,6 +17,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import java.io.File
 
 class MainActivity : AppCompatActivity() {
 
@@ -30,7 +31,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var permissionLayout: View
     private lateinit var grantPermissionButton: Button
     private lateinit var progressBar: ProgressBar
-    private val videos = mutableListOf<VideoFile>()
+    private lateinit var folderAdapter: FolderAdapter
+    
+    private val allVideos = mutableListOf<VideoFile>()
+    private val rootFolder = VideoFolder("Root", "/", mutableListOf(), mutableListOf())
+    private val folderStack = mutableListOf<VideoFolder>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,12 +48,66 @@ class MainActivity : AppCompatActivity() {
         progressBar = findViewById(R.id.progressBar)
 
         recyclerView.layoutManager = LinearLayoutManager(this)
+        
+        folderAdapter = FolderAdapter(emptyList()) { item ->
+            handleItemClick(item)
+        }
+        recyclerView.adapter = folderAdapter
 
         grantPermissionButton.setOnClickListener {
             requestStoragePermission()
         }
 
         checkPermissionAndLoadVideos()
+    }
+    
+    override fun onBackPressed() {
+        if (folderStack.isNotEmpty()) {
+            folderStack.removeAt(folderStack.size - 1)
+            val currentFolder = if (folderStack.isEmpty()) rootFolder else folderStack.last()
+            displayFolder(currentFolder)
+        } else {
+            super.onBackPressed()
+        }
+    }
+    
+    private fun handleItemClick(item: ListItem) {
+        when (item) {
+            is ListItem.BackItem -> {
+                onBackPressed()
+            }
+            is ListItem.FolderItem -> {
+                folderStack.add(item.folder)
+                displayFolder(item.folder)
+            }
+            is ListItem.VideoItem -> {
+                openPlayer(item.video)
+            }
+        }
+    }
+    
+    private fun displayFolder(folder: VideoFolder) {
+        val items = mutableListOf<ListItem>()
+        
+        // Add back button if not at root
+        if (folderStack.isNotEmpty()) {
+            items.add(ListItem.BackItem("⬆️ .."))
+        }
+        
+        // Add subfolders first
+        folder.subFolders.sortedBy { it.name.lowercase() }.forEach {
+            items.add(ListItem.FolderItem(it))
+        }
+        
+        // Add videos
+        folder.videos.sortedBy { it.name.lowercase() }.forEach {
+            items.add(ListItem.VideoItem(it))
+        }
+        
+        folderAdapter.updateItems(items)
+        
+        // Update title
+        title = if (folderStack.isEmpty()) "Plus Play" else folder.name
     }
 
     private fun checkPermissionAndLoadVideos() {
@@ -109,23 +168,24 @@ class MainActivity : AppCompatActivity() {
         progressBar.visibility = View.VISIBLE
         
         Thread {
-            videos.clear()
+            allVideos.clear()
+            rootFolder.videos.clear()
+            rootFolder.subFolders.clear()
+            folderStack.clear()
+            
             scanVideoFiles()
+            organizeFolders()
             
             runOnUiThread {
                 progressBar.visibility = View.GONE
                 
-                if (videos.isEmpty()) {
+                if (allVideos.isEmpty()) {
                     emptyView.visibility = View.VISIBLE
                     recyclerView.visibility = View.GONE
                 } else {
                     emptyView.visibility = View.GONE
                     recyclerView.visibility = View.VISIBLE
-                    
-                    val adapter = VideoAdapter(videos) { video ->
-                        openPlayer(video)
-                    }
-                    recyclerView.adapter = adapter
+                    displayFolder(rootFolder)
                 }
             }
         }.start()
@@ -139,7 +199,6 @@ class MainActivity : AppCompatActivity() {
             MediaStore.Video.Media.DURATION
         )
 
-        // Query all videos, then filter by extension
         val cursor: Cursor? = contentResolver.query(
             MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
             projection,
@@ -148,7 +207,7 @@ class MainActivity : AppCompatActivity() {
             "${MediaStore.Video.Media.DISPLAY_NAME} ASC"
         )
 
-        val videoSet = mutableSetOf<String>() // To avoid duplicates
+        val videoSet = mutableSetOf<String>()
 
         cursor?.use {
             val nameColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
@@ -160,25 +219,60 @@ class MainActivity : AppCompatActivity() {
                 val path = it.getString(dataColumn)
                 val duration = it.getLong(durationColumn)
                 
-                // Check if file has a supported extension
                 val hasValidExtension = SUPPORTED_VIDEO_EXTENSIONS.any { ext -> 
                     path.lowercase().endsWith(ext)
                 }
                 
                 if (hasValidExtension && !videoSet.contains(path)) {
                     videoSet.add(path)
-                    videos.add(VideoFile(name, path, duration))
+                    val file = File(path)
+                    val folderPath = file.parent ?: ""
+                    allVideos.add(VideoFile(name, path, duration, folderPath))
                 }
             }
         }
+    }
+    
+    private fun organizeFolders() {
+        val folderMap = mutableMapOf<String, VideoFolder>()
         
-        // Sort videos by name (case-insensitive)
-        videos.sortBy { it.name.lowercase() }
+        // Group videos by folder
+        allVideos.forEach { video ->
+            val folderPath = video.folderPath
+            
+            if (folderPath.isNotEmpty()) {
+                val folder = folderMap.getOrPut(folderPath) {
+                    val folderFile = File(folderPath)
+                    VideoFolder(folderFile.name, folderPath, mutableListOf(), mutableListOf())
+                }
+                folder.videos.add(video)
+            }
+        }
+        
+        // Build folder hierarchy
+        folderMap.values.forEach { folder ->
+            val parentPath = File(folder.path).parent
+            
+            if (parentPath != null && folderMap.containsKey(parentPath)) {
+                // Add to parent folder
+                folderMap[parentPath]?.subFolders?.add(folder)
+            } else {
+                // Add to root
+                rootFolder.subFolders.add(folder)
+            }
+        }
     }
 
     private fun openPlayer(video: VideoFile) {
+        // Get videos in current folder for playlist
+        val currentFolder = if (folderStack.isEmpty()) rootFolder else folderStack.last()
+        val playlist = ArrayList(currentFolder.videos)
+        val videoIndex = playlist.indexOfFirst { it.path == video.path }
+        
         val intent = Intent(this, PlayerActivity::class.java)
         intent.putExtra("VIDEO_PATH", video.path)
+        intent.putParcelableArrayListExtra("PLAYLIST", playlist)
+        intent.putExtra("VIDEO_INDEX", videoIndex)
         startActivity(intent)
     }
 }
