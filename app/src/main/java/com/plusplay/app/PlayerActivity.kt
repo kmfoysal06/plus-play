@@ -107,7 +107,8 @@ class PlayerActivity : AppCompatActivity() {
             finish()
             return
         }
-
+        
+        setVideoTitle()
         setupGestureDetector()
         setupVideoView()
         setupControls()
@@ -137,8 +138,9 @@ class PlayerActivity : AppCompatActivity() {
         settingsDropdown = findViewById(R.id.settingsDropdown)
         settingCurrentDirSubtitle = findViewById(R.id.settingCurrentDirSubtitle)
         settingExternalSubtitle = findViewById(R.id.settingExternalSubtitle)
-        
-        // Set video title
+    }
+    
+    private fun setVideoTitle() {
         videoPath?.let { path ->
             val file = File(path)
             videoTitle.text = file.name
