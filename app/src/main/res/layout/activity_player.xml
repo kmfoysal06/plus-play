@@ -21,6 +21,22 @@
         android:textStyle="bold"
         android:visibility="gone" />
 
+    <!-- Subtitle text -->
+    <TextView
+        android:id="@+id/subtitleText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="80dp"
+        android:background="#CC000000"
+        android:padding="8dp"
+        android:textColor="@color/white"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:visibility="gone" />
+
     <!-- Control overlay -->
     <RelativeLayout
         android:id="@+id/controlsOverlay"
@@ -71,6 +87,15 @@
                 android:tint="@color/white" />
 
             <ImageButton
+                android:id="@+id/btnSettings"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Settings"
+                android:src="@android:drawable/ic_menu_preferences"
+                android:tint="@color/white" />
+
+            <ImageButton
                 android:id="@+id/btnLock"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
@@ -78,6 +103,34 @@
                 android:contentDescription="Lock"
                 android:src="@android:drawable/ic_lock_idle_lock"
                 android:tint="@color/white" />
+
+        </LinearLayout>
+
+        <!-- Settings dropdown list -->
+        <LinearLayout
+            android:id="@+id/settingsDropdown"
+            android:layout_width="200dp"
+            android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentEnd="true"
+            android:layout_marginTop="56dp"
+            android:layout_marginEnd="8dp"
+            android:background="#DD000000"
+            android:orientation="vertical"
+            android:padding="8dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/settingLoadSubtitle"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:text="Load Subtitle"
+                android:textColor="@color/white"
+                android:textSize="14sp"
+                android:gravity="center_vertical"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:background="?android:attr/selectableItemBackground" />
 
         </LinearLayout>
 

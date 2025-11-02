@@ -1,6 +1,9 @@
 package com.plusplay.app
 
+import android.app.Activity
+import android.content.Intent
 import android.content.pm.ActivityInfo
+import android.graphics.Color
 import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
@@ -15,12 +18,15 @@ import android.view.WindowManager
 import android.view.animation.AlphaAnimation
 import android.view.animation.Animation
 import android.widget.ImageButton
+import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.VideoView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GestureDetectorCompat
+import java.io.BufferedReader
 import java.io.File
+import java.io.FileReader
 import kotlin.math.abs
 
 class PlayerActivity : AppCompatActivity() {
@@ -33,6 +39,7 @@ class PlayerActivity : AppCompatActivity() {
     private lateinit var totalTimeText: TextView
     private lateinit var videoTitle: TextView
     private lateinit var seekFeedback: TextView
+    private lateinit var subtitleText: TextView
     private lateinit var btnPlayPause: ImageButton
     private lateinit var btnCenterPlayPause: ImageButton
     private lateinit var btnPrevious: ImageButton
@@ -41,19 +48,25 @@ class PlayerActivity : AppCompatActivity() {
     private lateinit var btnForward: ImageButton
     private lateinit var btnRotate: ImageButton
     private lateinit var btnBack: ImageButton
+    private lateinit var btnSettings: ImageButton
     private lateinit var btnLock: ImageButton
     private lateinit var lockedIndicator: ImageButton
+    private lateinit var settingsDropdown: LinearLayout
+    private lateinit var settingLoadSubtitle: TextView
     
     private var isPlaying = true
     private var videoPath: String? = null
     private var playlist: ArrayList<VideoFile>? = null
     private var currentVideoIndex = 0
     private var isLocked = false
+    private var subtitles: List<SubtitleEntry> = emptyList()
+    private var currentSubtitlePath: String? = null
     
     private val handler = Handler(Looper.getMainLooper())
     private val updateSeekBarRunnable = object : Runnable {
         override fun run() {
             updateSeekBar()
+            updateSubtitle()
             handler.postDelayed(this, 500)
         }
     }
@@ -61,6 +74,16 @@ class PlayerActivity : AppCompatActivity() {
     private val hideControlsRunnable = Runnable {
         hideControls()
     }
+    
+    companion object {
+        private const val REQUEST_SUBTITLE_FILE = 100
+    }
+    
+    data class SubtitleEntry(
+        val startTime: Long,
+        val endTime: Long,
+        val text: String
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -97,6 +120,7 @@ class PlayerActivity : AppCompatActivity() {
         totalTimeText = findViewById(R.id.totalTime)
         videoTitle = findViewById(R.id.videoTitle)
         seekFeedback = findViewById(R.id.seekFeedback)
+        subtitleText = findViewById(R.id.subtitleText)
         btnPlayPause = findViewById(R.id.btnPlayPause)
         btnCenterPlayPause = findViewById(R.id.btnCenterPlayPause)
         btnPrevious = findViewById(R.id.btnPrevious)
@@ -105,8 +129,11 @@ class PlayerActivity : AppCompatActivity() {
         btnForward = findViewById(R.id.btnForward)
         btnRotate = findViewById(R.id.btnRotate)
         btnBack = findViewById(R.id.btnBack)
+        btnSettings = findViewById(R.id.btnSettings)
         btnLock = findViewById(R.id.btnLock)
         lockedIndicator = findViewById(R.id.lockedIndicator)
+        settingsDropdown = findViewById(R.id.settingsDropdown)
+        settingLoadSubtitle = findViewById(R.id.settingLoadSubtitle)
         
         // Set video title
         videoPath?.let { path ->
@@ -133,6 +160,15 @@ class PlayerActivity : AppCompatActivity() {
         
         // Back button
         btnBack.setOnClickListener { finish() }
+        
+        // Settings button
+        btnSettings.setOnClickListener { toggleSettingsDropdown() }
+        
+        // Settings - Load subtitle
+        settingLoadSubtitle.setOnClickListener {
+            settingsDropdown.visibility = View.GONE
+            openSubtitleFilePicker()
+        }
         
         // Lock button
         btnLock.setOnClickListener { toggleLock() }
@@ -163,6 +199,120 @@ class PlayerActivity : AppCompatActivity() {
         
         // Show controls initially
         showControls()
+    }
+    
+    private fun toggleSettingsDropdown() {
+        settingsDropdown.visibility = if (settingsDropdown.visibility == View.VISIBLE) {
+            View.GONE
+        } else {
+            View.VISIBLE
+        }
+        // Keep controls visible when settings are open
+        if (settingsDropdown.visibility == View.VISIBLE) {
+            handler.removeCallbacks(hideControlsRunnable)
+        } else {
+            scheduleHideControls()
+        }
+    }
+    
+    private fun openSubtitleFilePicker() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "*/*"
+            putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("application/x-subrip", "text/plain", "*/*"))
+        }
+        startActivityForResult(intent, REQUEST_SUBTITLE_FILE)
+    }
+    
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_SUBTITLE_FILE && resultCode == Activity.RESULT_OK) {
+            data?.data?.let { uri ->
+                try {
+                    val inputStream = contentResolver.openInputStream(uri)
+                    val content = inputStream?.bufferedReader()?.use { it.readText() }
+                    inputStream?.close()
+                    
+                    content?.let {
+                        subtitles = parseSubtitles(it)
+                        if (subtitles.isNotEmpty()) {
+                            subtitleText.visibility = View.VISIBLE
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+    }
+    
+    private fun parseSubtitles(content: String): List<SubtitleEntry> {
+        val entries = mutableListOf<SubtitleEntry>()
+        val lines = content.split("\n")
+        var i = 0
+        
+        while (i < lines.size) {
+            // Skip subtitle number
+            if (lines[i].trim().toIntOrNull() != null) {
+                i++
+                if (i >= lines.size) break
+                
+                // Parse time
+                val timeLine = lines[i].trim()
+                val times = timeLine.split(" --> ")
+                if (times.size == 2) {
+                    val startTime = parseTime(times[0].trim())
+                    val endTime = parseTime(times[1].trim())
+                    i++
+                    
+                    // Parse text
+                    val textLines = mutableListOf<String>()
+                    while (i < lines.size && lines[i].trim().isNotEmpty()) {
+                        textLines.add(lines[i].trim())
+                        i++
+                    }
+                    
+                    if (textLines.isNotEmpty()) {
+                        entries.add(SubtitleEntry(startTime, endTime, textLines.joinToString("\n")))
+                    }
+                }
+            }
+            i++
+        }
+        
+        return entries
+    }
+    
+    private fun parseTime(timeString: String): Long {
+        // Format: 00:00:00,000 or 00:00:00.000
+        val parts = timeString.replace(",", ".").split(":")
+        if (parts.size == 3) {
+            val hours = parts[0].toLongOrNull() ?: 0
+            val minutes = parts[1].toLongOrNull() ?: 0
+            val secondsParts = parts[2].split(".")
+            val seconds = secondsParts[0].toLongOrNull() ?: 0
+            val millis = if (secondsParts.size > 1) secondsParts[1].toLongOrNull() ?: 0 else 0
+            
+            return hours * 3600000 + minutes * 60000 + seconds * 1000 + millis
+        }
+        return 0
+    }
+    
+    private fun updateSubtitle() {
+        if (subtitles.isEmpty()) {
+            subtitleText.visibility = View.GONE
+            return
+        }
+        
+        val currentPosition = videoView.currentPosition.toLong()
+        val currentSubtitle = subtitles.find { it.startTime <= currentPosition && currentPosition <= it.endTime }
+        
+        if (currentSubtitle != null) {
+            subtitleText.text = currentSubtitle.text
+            subtitleText.visibility = View.VISIBLE
+        } else {
+            subtitleText.visibility = View.GONE
+        }
     }
     
     private fun updateNavigationButtons() {
@@ -235,6 +385,10 @@ class PlayerActivity : AppCompatActivity() {
                     }
                 } else {
                     // Toggle controls visibility
+                    // Hide settings dropdown if visible
+                    if (settingsDropdown.visibility == View.VISIBLE) {
+                        settingsDropdown.visibility = View.GONE
+                    }
                     toggleControls()
                 }
                 return true
@@ -300,9 +454,16 @@ class PlayerActivity : AppCompatActivity() {
             val subtitleFile = File(subtitlePath)
             
             if (subtitleFile.exists()) {
-                // Android's VideoView doesn't support subtitles natively
-                // For a minimal implementation, we skip subtitle rendering
-                // A full implementation would require MediaPlayer with custom subtitle rendering
+                try {
+                    val content = subtitleFile.readText()
+                    subtitles = parseSubtitles(content)
+                    if (subtitles.isNotEmpty()) {
+                        subtitleText.visibility = View.VISIBLE
+                        currentSubtitlePath = subtitlePath
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
             }
         }
     }
@@ -383,6 +544,10 @@ class PlayerActivity : AppCompatActivity() {
             videoView.stopPlayback()
             handler.removeCallbacks(updateSeekBarRunnable)
             
+            // Clear subtitles for new video
+            subtitles = emptyList()
+            subtitleText.visibility = View.GONE
+            
             // Load new video
             setupVideoView()
             loadSubtitles()
@@ -415,6 +580,7 @@ class PlayerActivity : AppCompatActivity() {
     
     private fun hideControls() {
         controlsOverlay.visibility = View.GONE
+        settingsDropdown.visibility = View.GONE
         handler.removeCallbacks(hideControlsRunnable)
     }
     

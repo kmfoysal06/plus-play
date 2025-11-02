@@ -1,10 +1,17 @@
 package com.plusplay.app
 
+import android.graphics.Bitmap
+import android.media.MediaMetadataRetriever
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 sealed class ListItem {
     data class FolderItem(val folder: VideoFolder) : ListItem()
@@ -35,6 +42,7 @@ class FolderAdapter(
     class VideoViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val videoName: TextView = view.findViewById(R.id.videoName)
         val videoDuration: TextView = view.findViewById(R.id.videoDuration)
+        val videoThumbnail: ImageView = view.findViewById(R.id.videoThumbnail)
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -85,6 +93,9 @@ class FolderAdapter(
                 holder.videoName.text = videoItem.video.name
                 holder.videoDuration.text = formatDuration(videoItem.video.duration)
                 holder.itemView.setOnClickListener { onItemClick(item) }
+                
+                // Load thumbnail asynchronously
+                loadThumbnail(videoItem.video.path, holder.videoThumbnail)
             }
         }
     }
@@ -101,5 +112,33 @@ class FolderAdapter(
         val minutes = seconds / 60
         val remainingSeconds = seconds % 60
         return String.format("%02d:%02d", minutes, remainingSeconds)
+    }
+    
+    private fun loadThumbnail(videoPath: String, imageView: ImageView) {
+        // Reset to default icon first
+        imageView.setImageResource(android.R.drawable.ic_media_play)
+        imageView.alpha = 0.3f
+        
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val retriever = MediaMetadataRetriever()
+                retriever.setDataSource(videoPath)
+                
+                // Get frame at 1 second (1,000,000 microseconds)
+                val bitmap = retriever.getFrameAtTime(1000000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                retriever.release()
+                
+                bitmap?.let {
+                    withContext(Dispatchers.Main) {
+                        imageView.setImageBitmap(it)
+                        imageView.alpha = 1.0f
+                        imageView.scaleType = ImageView.ScaleType.CENTER_CROP
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                // Keep default icon on error
+            }
+        }
     }
 }

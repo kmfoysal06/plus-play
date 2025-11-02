@@ -2,42 +2,53 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="horizontal"
-    android:padding="16dp"
-    android:gravity="center_vertical"
+    android:orientation="vertical"
+    android:padding="8dp"
     android:background="?android:attr/selectableItemBackground">
 
-    <ImageView
-        android:id="@+id/folderIcon"
-        android:layout_width="32dp"
-        android:layout_height="32dp"
-        android:src="@android:drawable/ic_menu_view"
-        android:tint="#FFA500"
-        android:contentDescription="Folder" />
+    <!-- Folder thumbnail container (box design) -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="120dp"
+        android:background="#E8F5E9">
 
-    <LinearLayout
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:layout_marginStart="12dp"
-        android:orientation="vertical">
+        <!-- Folder icon -->
+        <ImageView
+            android:id="@+id/folderIcon"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_gravity="center"
+            android:src="@android:drawable/ic_menu_view"
+            android:tint="#4CAF50"
+            android:contentDescription="Folder" />
 
-        <TextView
-            android:id="@+id/folderName"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:textColor="@color/black" />
-
+        <!-- Item count badge -->
         <TextView
             android:id="@+id/videoCount"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="12sp"
-            android:textColor="#666666"
-            android:layout_marginTop="4dp" />
+            android:layout_gravity="bottom|end"
+            android:layout_margin="4dp"
+            android:background="#CC4CAF50"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:paddingTop="2dp"
+            android:paddingBottom="2dp"
+            android:textColor="@color/white"
+            android:textSize="10sp"
+            android:text="0 items" />
 
-    </LinearLayout>
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/folderName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:textColor="@color/black"
+        android:ellipsize="end"
+        android:maxLines="2" />
 
 </LinearLayout>
