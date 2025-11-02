@@ -1,6 +1,7 @@
 package com.plusplay.app
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.graphics.Color
@@ -52,7 +53,8 @@ class PlayerActivity : AppCompatActivity() {
     private lateinit var btnLock: ImageButton
     private lateinit var lockedIndicator: ImageButton
     private lateinit var settingsDropdown: LinearLayout
-    private lateinit var settingLoadSubtitle: TextView
+    private lateinit var settingCurrentDirSubtitle: TextView
+    private lateinit var settingExternalSubtitle: TextView
     
     private var isPlaying = true
     private var videoPath: String? = null
@@ -133,7 +135,8 @@ class PlayerActivity : AppCompatActivity() {
         btnLock = findViewById(R.id.btnLock)
         lockedIndicator = findViewById(R.id.lockedIndicator)
         settingsDropdown = findViewById(R.id.settingsDropdown)
-        settingLoadSubtitle = findViewById(R.id.settingLoadSubtitle)
+        settingCurrentDirSubtitle = findViewById(R.id.settingCurrentDirSubtitle)
+        settingExternalSubtitle = findViewById(R.id.settingExternalSubtitle)
         
         // Set video title
         videoPath?.let { path ->
@@ -164,8 +167,14 @@ class PlayerActivity : AppCompatActivity() {
         // Settings button
         btnSettings.setOnClickListener { toggleSettingsDropdown() }
         
-        // Settings - Load subtitle
-        settingLoadSubtitle.setOnClickListener {
+        // Settings - Subtitle from current directory
+        settingCurrentDirSubtitle.setOnClickListener {
+            settingsDropdown.visibility = View.GONE
+            showCurrentDirectorySubtitles()
+        }
+        
+        // Settings - External subtitle
+        settingExternalSubtitle.setOnClickListener {
             settingsDropdown.visibility = View.GONE
             openSubtitleFilePicker()
         }
@@ -222,6 +231,57 @@ class PlayerActivity : AppCompatActivity() {
             putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("application/x-subrip", "text/plain", "*/*"))
         }
         startActivityForResult(intent, REQUEST_SUBTITLE_FILE)
+    }
+    
+    private fun showCurrentDirectorySubtitles() {
+        videoPath?.let { path ->
+            val videoFile = File(path)
+            val directory = videoFile.parentFile
+            
+            if (directory != null && directory.exists()) {
+                // Find all .srt files in the same directory
+                val srtFiles = directory.listFiles { file ->
+                    file.isFile && file.extension.equals("srt", ignoreCase = true)
+                }?.sortedBy { it.name } ?: emptyList()
+                
+                if (srtFiles.isEmpty()) {
+                    // Show message if no subtitles found
+                    AlertDialog.Builder(this)
+                        .setTitle("No Subtitles Found")
+                        .setMessage("No .srt subtitle files found in the current directory.")
+                        .setPositiveButton("OK", null)
+                        .show()
+                } else {
+                    // Show dialog with subtitle files
+                    val subtitleNames = srtFiles.map { it.name }.toTypedArray()
+                    AlertDialog.Builder(this)
+                        .setTitle("Select Subtitle")
+                        .setItems(subtitleNames) { dialog, which ->
+                            loadSubtitleFile(srtFiles[which])
+                        }
+                        .setNegativeButton("Cancel", null)
+                        .show()
+                }
+            }
+        }
+    }
+    
+    private fun loadSubtitleFile(file: File) {
+        try {
+            val content = file.readText()
+            subtitles = parseSubtitles(content)
+            if (subtitles.isNotEmpty()) {
+                subtitleText.visibility = View.VISIBLE
+                currentSubtitlePath = file.absolutePath
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            AlertDialog.Builder(this)
+                .setTitle("Error")
+                .setMessage("Failed to load subtitle file: ${e.message}")
+                .setPositiveButton("OK", null)
+                .show()
+        }
     }
     
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {

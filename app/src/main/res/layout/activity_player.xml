@@ -109,7 +109,7 @@
         <!-- Settings dropdown list -->
         <LinearLayout
             android:id="@+id/settingsDropdown"
-            android:layout_width="200dp"
+            android:layout_width="240dp"
             android:layout_height="wrap_content"
             android:layout_alignParentTop="true"
             android:layout_alignParentEnd="true"
@@ -121,10 +121,22 @@
             android:visibility="gone">
 
             <TextView
-                android:id="@+id/settingLoadSubtitle"
+                android:id="@+id/settingCurrentDirSubtitle"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
-                android:text="Load Subtitle"
+                android:text="Subtitle from Current Directory"
+                android:textColor="@color/white"
+                android:textSize="14sp"
+                android:gravity="center_vertical"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:background="?android:attr/selectableItemBackground" />
+
+            <TextView
+                android:id="@+id/settingExternalSubtitle"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:text="External Subtitle"
                 android:textColor="@color/white"
                 android:textSize="14sp"
                 android:gravity="center_vertical"

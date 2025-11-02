@@ -37,6 +37,7 @@ class FolderAdapter(
     class FolderViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val folderName: TextView = view.findViewById(R.id.folderName)
         val videoCount: TextView = view.findViewById(R.id.videoCount)
+        val folderIcon: ImageView = view.findViewById(R.id.folderIcon)
     }
 
     class VideoViewHolder(view: View) : RecyclerView.ViewHolder(view) {
@@ -87,6 +88,16 @@ class FolderAdapter(
                 holder.folderName.text = folderItem.folder.name
                 holder.videoCount.text = "${folderItem.folder.videos.size + folderItem.folder.subFolders.size} items"
                 holder.itemView.setOnClickListener { onItemClick(item) }
+                
+                // Try to load thumbnail from first video in folder
+                val firstVideoPath = folderItem.folder.getFirstVideoPath()
+                if (firstVideoPath != null) {
+                    loadFolderThumbnail(firstVideoPath, holder.folderIcon)
+                } else {
+                    // No videos, keep folder icon
+                    holder.folderIcon.setImageResource(android.R.drawable.ic_menu_gallery)
+                    holder.folderIcon.alpha = 1.0f
+                }
             }
             is VideoViewHolder -> {
                 val videoItem = item as ListItem.VideoItem
@@ -118,14 +129,26 @@ class FolderAdapter(
         // Reset to default icon first
         imageView.setImageResource(android.R.drawable.ic_media_play)
         imageView.alpha = 0.3f
+        imageView.scaleType = ImageView.ScaleType.CENTER
         
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val retriever = MediaMetadataRetriever()
                 retriever.setDataSource(videoPath)
                 
-                // Get frame at 1 second (1,000,000 microseconds)
-                val bitmap = retriever.getFrameAtTime(1000000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                // Try to get frame at the beginning first (0 microseconds)
+                var bitmap = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                
+                // If that fails, try at 1 second
+                if (bitmap == null) {
+                    bitmap = retriever.getFrameAtTime(1000000, MediaMetadataRetriever.OPTION_CLOSEST)
+                }
+                
+                // If still null, try any frame
+                if (bitmap == null) {
+                    bitmap = retriever.frameAtTime
+                }
+                
                 retriever.release()
                 
                 bitmap?.let {
@@ -138,6 +161,47 @@ class FolderAdapter(
             } catch (e: Exception) {
                 e.printStackTrace()
                 // Keep default icon on error
+            }
+        }
+    }
+    
+    private fun loadFolderThumbnail(videoPath: String, imageView: ImageView) {
+        // Load thumbnail from first video, but keep it subtle for folders
+        imageView.setImageResource(android.R.drawable.ic_menu_gallery)
+        imageView.alpha = 0.3f
+        imageView.scaleType = ImageView.ScaleType.CENTER
+        
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val retriever = MediaMetadataRetriever()
+                retriever.setDataSource(videoPath)
+                
+                // Try to get frame at the beginning first
+                var bitmap = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                
+                if (bitmap == null) {
+                    bitmap = retriever.getFrameAtTime(1000000, MediaMetadataRetriever.OPTION_CLOSEST)
+                }
+                
+                if (bitmap == null) {
+                    bitmap = retriever.frameAtTime
+                }
+                
+                retriever.release()
+                
+                bitmap?.let {
+                    withContext(Dispatchers.Main) {
+                        imageView.setImageBitmap(it)
+                        imageView.alpha = 0.6f  // Make it slightly dimmed to distinguish from videos
+                        imageView.scaleType = ImageView.ScaleType.CENTER_CROP
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    imageView.setImageResource(android.R.drawable.ic_menu_gallery)
+                    imageView.alpha = 1.0f
+                }
             }
         }
     }

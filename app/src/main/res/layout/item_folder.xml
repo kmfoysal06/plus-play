@@ -12,15 +12,27 @@
         android:layout_height="120dp"
         android:background="#FFF3E0">
 
-        <!-- Folder icon -->
+        <!-- Folder icon (will be replaced with thumbnail if video exists) -->
         <ImageView
             android:id="@+id/folderIcon"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:layout_gravity="center"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
             android:src="@android:drawable/ic_menu_gallery"
             android:tint="#FFA726"
+            android:scaleType="center"
             android:contentDescription="Folder" />
+
+        <!-- Small folder icon overlay in corner -->
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="top|start"
+            android:layout_margin="4dp"
+            android:src="@android:drawable/ic_menu_gallery"
+            android:background="#DDFFFFFF"
+            android:padding="2dp"
+            android:tint="#FFA726"
+            android:contentDescription="Folder indicator" />
 
         <!-- Item count badge -->
         <TextView
