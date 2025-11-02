@@ -53,7 +53,8 @@ class MainActivity : AppCompatActivity() {
         gridLayoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
             override fun getSpanSize(position: Int): Int {
                 return when (folderAdapter.getItemViewType(position)) {
-                    0, 1 -> 3  // Back and Folder items take full width (all 3 spans)
+                    0 -> 3  // Back item takes full width (all 3 spans)
+                    1 -> 1  // Folder items take 1 span (grid layout like videos)
                     else -> 1   // Video items take 1 span (grid layout)
                 }
             }

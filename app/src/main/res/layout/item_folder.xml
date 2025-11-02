@@ -10,7 +10,7 @@
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="120dp"
-        android:background="#E8F5E9">
+        android:background="#FFF3E0">
 
         <!-- Folder icon -->
         <ImageView
@@ -18,8 +18,8 @@
             android:layout_width="56dp"
             android:layout_height="56dp"
             android:layout_gravity="center"
-            android:src="@android:drawable/ic_menu_view"
-            android:tint="#4CAF50"
+            android:src="@android:drawable/ic_menu_gallery"
+            android:tint="#FFA726"
             android:contentDescription="Folder" />
 
         <!-- Item count badge -->
@@ -29,7 +29,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|end"
             android:layout_margin="4dp"
-            android:background="#CC4CAF50"
+            android:background="#CCFF9800"
             android:paddingStart="6dp"
             android:paddingEnd="6dp"
             android:paddingTop="2dp"
