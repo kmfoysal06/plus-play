@@ -38,12 +38,34 @@ class FolderAdapter(
         val folderName: TextView = view.findViewById(R.id.folderName)
         val videoCount: TextView = view.findViewById(R.id.videoCount)
         val folderIcon: ImageView = view.findViewById(R.id.folderIcon)
+        val thumbnailContainer: View = view.findViewById(R.id.thumbnailContainer)
+        
+        init {
+            // Make thumbnail container square
+            thumbnailContainer.post {
+                val width = thumbnailContainer.width
+                val layoutParams = thumbnailContainer.layoutParams
+                layoutParams.height = width
+                thumbnailContainer.layoutParams = layoutParams
+            }
+        }
     }
 
     class VideoViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val videoName: TextView = view.findViewById(R.id.videoName)
         val videoDuration: TextView = view.findViewById(R.id.videoDuration)
         val videoThumbnail: ImageView = view.findViewById(R.id.videoThumbnail)
+        val thumbnailContainer: View = view.findViewById(R.id.thumbnailContainer)
+        
+        init {
+            // Make thumbnail container square
+            thumbnailContainer.post {
+                val width = thumbnailContainer.width
+                val layoutParams = thumbnailContainer.layoutParams
+                layoutParams.height = width
+                thumbnailContainer.layoutParams = layoutParams
+            }
+        }
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -89,14 +111,15 @@ class FolderAdapter(
                 holder.videoCount.text = "${folderItem.folder.videos.size + folderItem.folder.subFolders.size} items"
                 holder.itemView.setOnClickListener { onItemClick(item) }
                 
+                // Reset icon first
+                holder.folderIcon.setImageResource(android.R.drawable.ic_menu_gallery)
+                holder.folderIcon.scaleType = ImageView.ScaleType.CENTER
+                holder.folderIcon.alpha = 1.0f
+                
                 // Try to load thumbnail from first video in folder
                 val firstVideoPath = folderItem.folder.getFirstVideoPath()
                 if (firstVideoPath != null) {
                     loadFolderThumbnail(firstVideoPath, holder.folderIcon)
-                } else {
-                    // No videos, keep folder icon
-                    holder.folderIcon.setImageResource(android.R.drawable.ic_menu_gallery)
-                    holder.folderIcon.alpha = 1.0f
                 }
             }
             is VideoViewHolder -> {
@@ -104,6 +127,11 @@ class FolderAdapter(
                 holder.videoName.text = videoItem.video.name
                 holder.videoDuration.text = formatDuration(videoItem.video.duration)
                 holder.itemView.setOnClickListener { onItemClick(item) }
+                
+                // Reset thumbnail first
+                holder.videoThumbnail.setImageResource(android.R.drawable.ic_media_play)
+                holder.videoThumbnail.scaleType = ImageView.ScaleType.CENTER
+                holder.videoThumbnail.alpha = 0.3f
                 
                 // Load thumbnail asynchronously
                 loadThumbnail(videoItem.video.path, holder.videoThumbnail)
@@ -126,11 +154,6 @@ class FolderAdapter(
     }
     
     private fun loadThumbnail(videoPath: String, imageView: ImageView) {
-        // Show placeholder while loading
-        imageView.setImageResource(android.R.drawable.ic_media_play)
-        imageView.scaleType = ImageView.ScaleType.CENTER
-        imageView.alpha = 0.3f
-        
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val retriever = MediaMetadataRetriever()
@@ -166,11 +189,6 @@ class FolderAdapter(
     }
     
     private fun loadFolderThumbnail(videoPath: String, imageView: ImageView) {
-        // Show folder icon placeholder while loading
-        imageView.setImageResource(android.R.drawable.ic_menu_gallery)
-        imageView.scaleType = ImageView.ScaleType.CENTER
-        imageView.alpha = 1.0f
-        
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val retriever = MediaMetadataRetriever()
@@ -202,4 +220,5 @@ class FolderAdapter(
             }
         }
     }
+}
 }
