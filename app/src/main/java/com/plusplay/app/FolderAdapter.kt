@@ -126,10 +126,10 @@ class FolderAdapter(
     }
     
     private fun loadThumbnail(videoPath: String, imageView: ImageView) {
-        // Reset to default icon first
+        // Show placeholder while loading
         imageView.setImageResource(android.R.drawable.ic_media_play)
-        imageView.alpha = 0.3f
         imageView.scaleType = ImageView.ScaleType.CENTER
+        imageView.alpha = 0.3f
         
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -151,11 +151,11 @@ class FolderAdapter(
                 
                 retriever.release()
                 
-                bitmap?.let {
+                if (bitmap != null) {
                     withContext(Dispatchers.Main) {
-                        imageView.setImageBitmap(it)
-                        imageView.alpha = 1.0f
+                        imageView.setImageBitmap(bitmap)
                         imageView.scaleType = ImageView.ScaleType.CENTER_CROP
+                        imageView.alpha = 1.0f
                     }
                 }
             } catch (e: Exception) {
@@ -166,10 +166,10 @@ class FolderAdapter(
     }
     
     private fun loadFolderThumbnail(videoPath: String, imageView: ImageView) {
-        // Load thumbnail from first video, but keep it subtle for folders
+        // Show folder icon placeholder while loading
         imageView.setImageResource(android.R.drawable.ic_menu_gallery)
-        imageView.alpha = 0.3f
         imageView.scaleType = ImageView.ScaleType.CENTER
+        imageView.alpha = 1.0f
         
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -189,19 +189,16 @@ class FolderAdapter(
                 
                 retriever.release()
                 
-                bitmap?.let {
+                if (bitmap != null) {
                     withContext(Dispatchers.Main) {
-                        imageView.setImageBitmap(it)
-                        imageView.alpha = 0.6f  // Make it slightly dimmed to distinguish from videos
+                        imageView.setImageBitmap(bitmap)
                         imageView.scaleType = ImageView.ScaleType.CENTER_CROP
+                        imageView.alpha = 0.7f  // Slightly dimmed to distinguish from direct videos
                     }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                withContext(Dispatchers.Main) {
-                    imageView.setImageResource(android.R.drawable.ic_menu_gallery)
-                    imageView.alpha = 1.0f
-                }
+                // Keep folder icon on error
             }
         }
     }

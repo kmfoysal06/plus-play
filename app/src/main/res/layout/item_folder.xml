@@ -10,7 +10,7 @@
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="120dp"
-        android:background="#FFF3E0">
+        android:background="#E0E0E0">
 
         <!-- Folder icon (will be replaced with thumbnail if video exists) -->
         <ImageView
@@ -19,7 +19,7 @@
             android:layout_height="match_parent"
             android:src="@android:drawable/ic_menu_gallery"
             android:tint="#FFA726"
-            android:scaleType="center"
+            android:scaleType="centerCrop"
             android:contentDescription="Folder" />
 
         <!-- Small folder icon overlay in corner -->

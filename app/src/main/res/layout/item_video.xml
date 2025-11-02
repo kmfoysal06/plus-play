@@ -12,14 +12,13 @@
         android:layout_height="120dp"
         android:background="#E0E0E0">
 
-        <!-- Placeholder icon for video thumbnail -->
+        <!-- Video thumbnail fills entire container -->
         <ImageView
             android:id="@+id/videoThumbnail"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_gravity="center"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
             android:src="@android:drawable/ic_media_play"
-            android:tint="#757575"
+            android:scaleType="centerCrop"
             android:contentDescription="Video" />
 
         <!-- Duration badge -->
