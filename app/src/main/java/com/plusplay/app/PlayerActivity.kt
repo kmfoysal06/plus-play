@@ -2,6 +2,7 @@ package com.plusplay.app
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.graphics.Color
@@ -79,6 +80,9 @@ class PlayerActivity : AppCompatActivity() {
     
     companion object {
         private const val REQUEST_SUBTITLE_FILE = 100
+        private const val PREFS_NAME = "VideoPlayerPrefs"
+        private const val KEY_VIDEO_POSITION = "video_position_"
+        private const val KEY_WAS_PLAYING = "was_playing_"
     }
     
     data class SubtitleEntry(
@@ -463,8 +467,20 @@ class PlayerActivity : AppCompatActivity() {
         videoView.setVideoURI(uri)
         
         videoView.setOnPreparedListener { mediaPlayer ->
-            mediaPlayer.start()
-            isPlaying = true
+            // Restore saved position if available
+            val savedPosition = getSavedPosition()
+            if (savedPosition > 0) {
+                videoView.seekTo(savedPosition)
+            }
+            
+            // Restore playing state
+            val wasPlaying = getWasPlaying()
+            if (wasPlaying) {
+                mediaPlayer.start()
+                isPlaying = true
+            } else {
+                isPlaying = false
+            }
             updatePlayPauseButton()
             
             // Disable looping - video ends and closes player
@@ -480,6 +496,9 @@ class PlayerActivity : AppCompatActivity() {
         }
 
         videoView.setOnCompletionListener {
+            // Clear saved position when video completes
+            clearSavedPosition()
+            
             if (playlist != null && currentVideoIndex < playlist!!.size - 1) {
                 playNextVideo()
             } else {
@@ -714,6 +733,10 @@ class PlayerActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
+        // Save current position and playing state
+        savePosition(videoView.currentPosition)
+        saveWasPlaying(isPlaying)
+        
         if (isPlaying) {
             videoView.pause()
         }
@@ -731,8 +754,46 @@ class PlayerActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        // Clear saved position when leaving the activity
+        clearSavedPosition()
         videoView.stopPlayback()
         handler.removeCallbacks(updateSeekBarRunnable)
         handler.removeCallbacks(hideControlsRunnable)
+    }
+    
+    // Helper methods for saving/loading position
+    private fun savePosition(position: Int) {
+        videoPath?.let { path ->
+            val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            prefs.edit().putInt(KEY_VIDEO_POSITION + path, position).apply()
+        }
+    }
+    
+    private fun getSavedPosition(): Int {
+        return videoPath?.let { path ->
+            val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            prefs.getInt(KEY_VIDEO_POSITION + path, 0)
+        } ?: 0
+    }
+    
+    private fun clearSavedPosition() {
+        videoPath?.let { path ->
+            val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            prefs.edit().remove(KEY_VIDEO_POSITION + path).remove(KEY_WAS_PLAYING + path).apply()
+        }
+    }
+    
+    private fun saveWasPlaying(wasPlaying: Boolean) {
+        videoPath?.let { path ->
+            val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            prefs.edit().putBoolean(KEY_WAS_PLAYING + path, wasPlaying).apply()
+        }
+    }
+    
+    private fun getWasPlaying(): Boolean {
+        return videoPath?.let { path ->
+            val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            prefs.getBoolean(KEY_WAS_PLAYING + path, true) // Default to true (auto-play)
+        } ?: true
     }
 }
