@@ -65,6 +65,12 @@ class PlayerActivity : AppCompatActivity() {
     private var subtitles: List<SubtitleEntry> = emptyList()
     private var currentSubtitlePath: String? = null
     
+    // Variables for accumulated seeking
+    private var accumulatedSeekTime = 0 // in milliseconds
+    private var lastSwipeDirection = 0 // 1 for forward, -1 for backward, 0 for none
+    private var lastSwipeTime = 0L
+    private val swipeResetDelay = 1000L // Reset accumulated seek after 1 second of no swiping
+    
     private val handler = Handler(Looper.getMainLooper())
     private val updateSeekBarRunnable = object : Runnable {
         override fun run() {
@@ -76,6 +82,11 @@ class PlayerActivity : AppCompatActivity() {
     
     private val hideControlsRunnable = Runnable {
         hideControls()
+    }
+    
+    private val resetAccumulatedSeekRunnable = Runnable {
+        accumulatedSeekTime = 0
+        lastSwipeDirection = 0
     }
     
     companion object {
@@ -429,13 +440,33 @@ class PlayerActivity : AppCompatActivity() {
                 val diffY = e2.y - e1.y
                 
                 if (abs(diffX) > abs(diffY) && abs(diffX) > 100 && abs(velocityX) > 100) {
-                    if (diffX > 0) {
-                        // Swipe right - forward 10 seconds
-                        seekRelative(10000, true)
+                    val currentTime = System.currentTimeMillis()
+                    val direction = if (diffX > 0) 1 else -1 // 1 for forward, -1 for backward
+                    val seekIncrement = 10000 // 10 seconds
+                    
+                    // Check if this swipe is in the same direction as the last one and within the time window
+                    if (direction == lastSwipeDirection && (currentTime - lastSwipeTime) < swipeResetDelay) {
+                        // Accumulate seek time - add another 10 seconds in the same direction
+                        accumulatedSeekTime += direction * seekIncrement
+                        // Seek by the increment only
+                        seekRelative(direction * seekIncrement, false)
                     } else {
-                        // Swipe left - backward 10 seconds
-                        seekRelative(-10000, true)
+                        // Reset and start new accumulation
+                        accumulatedSeekTime = direction * seekIncrement
+                        lastSwipeDirection = direction
+                        // Seek by the increment
+                        seekRelative(direction * seekIncrement, false)
                     }
+                    
+                    lastSwipeTime = currentTime
+                    
+                    // Show feedback with accumulated time
+                    showSeekFeedback(accumulatedSeekTime)
+                    
+                    // Schedule reset of accumulated seek after delay
+                    handler.removeCallbacks(resetAccumulatedSeekRunnable)
+                    handler.postDelayed(resetAccumulatedSeekRunnable, swipeResetDelay)
+                    
                     return true
                 }
                 return false
@@ -759,6 +790,7 @@ class PlayerActivity : AppCompatActivity() {
         videoView.stopPlayback()
         handler.removeCallbacks(updateSeekBarRunnable)
         handler.removeCallbacks(hideControlsRunnable)
+        handler.removeCallbacks(resetAccumulatedSeekRunnable)
     }
     
     // Helper methods for saving/loading position
