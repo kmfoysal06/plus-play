@@ -102,15 +102,24 @@ class PlayerActivity : AppCompatActivity() {
         private const val PREFS_NAME = "VideoPlayerPrefs"
         private const val KEY_VIDEO_POSITION = "video_position_"
         private const val KEY_WAS_PLAYING = "was_playing_"
+        private const val KEY_TIMESTAMP = "video_timestamp_"
+        private const val KEY_RECENT_VIDEOS = "recent_videos"
         private const val STATE_VIDEO_PATH = "state_video_path"
         private const val STATE_VIDEO_POSITION = "state_video_position"
         private const val STATE_WAS_PLAYING = "state_was_playing"
+        private const val MAX_RECENT_VIDEOS = 3
     }
     
     data class SubtitleEntry(
         val startTime: Long,
         val endTime: Long,
         val text: String
+    )
+    
+    data class VideoPlaybackState(
+        val videoPath: String,
+        val position: Int,
+        val timestamp: Long
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -453,51 +462,47 @@ class PlayerActivity : AppCompatActivity() {
                 val diffX = e2.x - e1.x
                 val diffY = e2.y - e1.y
                 
-                // Check if this is a horizontal scroll
+                // Check if this is a horizontal scroll (swipe left/right for seeking)
                 if (abs(diffX) > abs(diffY) && abs(diffX) > 50) {
                     if (!isScrolling) {
                         // Start new scroll session
                         isScrolling = true
                         scrollStartX = e1.x
-                        scrollStartY = e1.y
                         totalScrolledDistance = 0f
-                        
-                        // Reset accumulated seek for new gesture
-                        val currentTime = System.currentTimeMillis()
-                        if ((currentTime - lastSwipeTime) >= swipeResetDelay) {
-                            accumulatedSeekTime = 0
-                            lastSwipeDirection = 0
-                        }
+                        accumulatedSeekTime = 0
+                        lastSwipeDirection = 0
                     }
                     
+                    // Calculate seek amount based on total scroll distance from start
                     val direction = if (diffX > 0) 1 else -1
                     totalScrolledDistance = abs(diffX)
                     
-                    // Calculate how many 10s increments based on scroll distance
-                    val numIncrements = (totalScrolledDistance / scrollThresholdPerSeek).toInt()
-                    val targetSeekTime = numIncrements * 10000 * direction
+                    // Every 100 pixels = 10 seconds (more responsive than 150)
+                    val seekSeconds = (totalScrolledDistance / 100f).toInt()
+                    val targetSeekTime = seekSeconds * 10000 * direction
                     
-                    // Only update if we've crossed a new threshold
-                    if (targetSeekTime != 0 && targetSeekTime != accumulatedSeekTime) {
+                    // Only update if we've reached a new 10-second increment
+                    if (targetSeekTime != accumulatedSeekTime) {
                         // Check if direction changed
                         if (direction != lastSwipeDirection && lastSwipeDirection != 0) {
-                            // Direction changed, reset
+                            // Direction changed, start fresh
                             accumulatedSeekTime = 0
+                            totalScrolledDistance = 0f
                         }
                         
-                        // Calculate the increment to apply
+                        // Calculate the increment since last update
                         val increment = targetSeekTime - accumulatedSeekTime
                         accumulatedSeekTime = targetSeekTime
                         lastSwipeDirection = direction
                         lastSwipeTime = System.currentTimeMillis()
                         
-                        // Apply the seek increment
+                        // Seek the video
                         seekRelative(increment, false)
                         
-                        // Show feedback with accumulated time
+                        // Show visual feedback
                         showSeekFeedback(accumulatedSeekTime)
                         
-                        // Schedule reset of accumulated seek after delay
+                        // Reset accumulated seek after delay
                         handler.removeCallbacks(resetAccumulatedSeekRunnable)
                         handler.postDelayed(resetAccumulatedSeekRunnable, swipeResetDelay)
                     }
@@ -544,22 +549,6 @@ class PlayerActivity : AppCompatActivity() {
         videoView.setVideoURI(uri)
         
         videoView.setOnPreparedListener { mediaPlayer ->
-            // Restore saved position if available
-            val savedPosition = getSavedPosition()
-            if (savedPosition > 0) {
-                videoView.seekTo(savedPosition)
-            }
-            
-            // Restore playing state
-            val wasPlaying = getWasPlaying()
-            if (wasPlaying) {
-                mediaPlayer.start()
-                isPlaying = true
-            } else {
-                isPlaying = false
-            }
-            updatePlayPauseButton()
-            
             // Disable looping - video ends and closes player
             mediaPlayer.isLooping = false
             
@@ -567,6 +556,17 @@ class PlayerActivity : AppCompatActivity() {
             val duration = videoView.duration
             seekBar.max = duration
             totalTimeText.text = formatTime(duration)
+            
+            // Check for saved position and show resume dialog if needed
+            val savedPosition = getSavedPosition()
+            if (savedPosition > 0 && savedPosition < duration - 5000) { // At least 5 seconds before end
+                showResumeDialog(savedPosition)
+            } else {
+                // Start playback normally
+                mediaPlayer.start()
+                isPlaying = true
+                updatePlayPauseButton()
+            }
             
             // Start updating seekbar
             handler.post(updateSeekBarRunnable)
@@ -817,9 +817,12 @@ class PlayerActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
-        // Save current position and playing state
-        savePosition(videoView.currentPosition)
-        saveWasPlaying(isPlaying)
+        // Save current position and playing state (crucial for Bluetooth disconnect scenarios)
+        val currentPos = videoView.currentPosition
+        if (currentPos > 0) {
+            savePosition(currentPos)
+            saveWasPlaying(isPlaying)
+        }
         
         if (isPlaying) {
             videoView.pause()
@@ -882,7 +885,13 @@ class PlayerActivity : AppCompatActivity() {
     private fun savePosition(position: Int) {
         videoPath?.let { path ->
             val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            prefs.edit().putInt(KEY_VIDEO_POSITION + path, position).apply()
+            val editor = prefs.edit()
+            editor.putInt(KEY_VIDEO_POSITION + path, position)
+            editor.putLong(KEY_TIMESTAMP + path, System.currentTimeMillis())
+            editor.apply()
+            
+            // Update recent videos list
+            updateRecentVideos()
         }
     }
     
@@ -896,7 +905,11 @@ class PlayerActivity : AppCompatActivity() {
     private fun clearSavedPosition() {
         videoPath?.let { path ->
             val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            prefs.edit().remove(KEY_VIDEO_POSITION + path).remove(KEY_WAS_PLAYING + path).apply()
+            val editor = prefs.edit()
+            editor.remove(KEY_VIDEO_POSITION + path)
+            editor.remove(KEY_WAS_PLAYING + path)
+            editor.remove(KEY_TIMESTAMP + path)
+            editor.apply()
         }
     }
     
@@ -912,5 +925,63 @@ class PlayerActivity : AppCompatActivity() {
             val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             prefs.getBoolean(KEY_WAS_PLAYING + path, true) // Default to true (auto-play)
         } ?: true
+    }
+    
+    private fun showResumeDialog(savedPosition: Int) {
+        val formattedPosition = formatTime(savedPosition)
+        
+        AlertDialog.Builder(this)
+            .setTitle("Resume Playback")
+            .setMessage("Do you want to resume from where you left off ($formattedPosition)?")
+            .setPositiveButton("Resume") { dialog, _ ->
+                videoView.seekTo(savedPosition)
+                videoView.start()
+                isPlaying = true
+                updatePlayPauseButton()
+                dialog.dismiss()
+            }
+            .setNegativeButton("Start from Beginning") { dialog, _ ->
+                videoView.seekTo(0)
+                videoView.start()
+                isPlaying = true
+                updatePlayPauseButton()
+                dialog.dismiss()
+            }
+            .setCancelable(false)
+            .show()
+    }
+    
+    private fun updateRecentVideos() {
+        videoPath?.let { path ->
+            val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val editor = prefs.edit()
+            
+            // Get current recent videos list
+            val recentVideosString = prefs.getString(KEY_RECENT_VIDEOS, "") ?: ""
+            val recentVideos = if (recentVideosString.isEmpty()) {
+                mutableListOf<String>()
+            } else {
+                recentVideosString.split("|").toMutableList()
+            }
+            
+            // Remove current video if already in list
+            recentVideos.remove(path)
+            
+            // Add to front of list
+            recentVideos.add(0, path)
+            
+            // Keep only last MAX_RECENT_VIDEOS
+            while (recentVideos.size > MAX_RECENT_VIDEOS) {
+                val oldestVideo = recentVideos.removeAt(recentVideos.size - 1)
+                // Clean up old video data
+                editor.remove(KEY_VIDEO_POSITION + oldestVideo)
+                editor.remove(KEY_WAS_PLAYING + oldestVideo)
+                editor.remove(KEY_TIMESTAMP + oldestVideo)
+            }
+            
+            // Save updated list
+            editor.putString(KEY_RECENT_VIDEOS, recentVideos.joinToString("|"))
+            editor.apply()
+        }
     }
 }
