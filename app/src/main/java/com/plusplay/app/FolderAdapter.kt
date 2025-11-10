@@ -111,10 +111,16 @@ class FolderAdapter(
                 holder.videoCount.text = "${folderItem.folder.videos.size + folderItem.folder.subFolders.size} items"
                 holder.itemView.setOnClickListener { onItemClick(item) }
                 
-                // Just use folder icon (no thumbnail loading for better performance)
+                // Reset icon first
                 holder.folderIcon.setImageResource(android.R.drawable.ic_menu_gallery)
                 holder.folderIcon.scaleType = ImageView.ScaleType.CENTER
                 holder.folderIcon.alpha = 1.0f
+                
+                // Try to load thumbnail from first video in folder
+                val firstVideoPath = folderItem.folder.getFirstVideoPath()
+                if (firstVideoPath != null) {
+                    loadFolderThumbnail(firstVideoPath, holder.folderIcon)
+                }
             }
             is VideoViewHolder -> {
                 val videoItem = item as ListItem.VideoItem
@@ -182,4 +188,36 @@ class FolderAdapter(
         }
     }
     
+    private fun loadFolderThumbnail(videoPath: String, imageView: ImageView) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val retriever = MediaMetadataRetriever()
+                retriever.setDataSource(videoPath)
+                
+                // Try to get frame at the beginning first
+                var bitmap = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                
+                if (bitmap == null) {
+                    bitmap = retriever.getFrameAtTime(1000000, MediaMetadataRetriever.OPTION_CLOSEST)
+                }
+                
+                if (bitmap == null) {
+                    bitmap = retriever.frameAtTime
+                }
+                
+                retriever.release()
+                
+                if (bitmap != null) {
+                    withContext(Dispatchers.Main) {
+                        imageView.setImageBitmap(bitmap)
+                        imageView.scaleType = ImageView.ScaleType.CENTER_CROP
+                        imageView.alpha = 0.7f  // Slightly dimmed to distinguish from direct videos
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                // Keep folder icon on error
+            }
+        }
+    }
 }
