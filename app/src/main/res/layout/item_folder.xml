@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="8dp"
+    android:background="?android:attr/selectableItemBackground">
+
+    <!-- Folder thumbnail container (box design) - square aspect ratio -->
+    <FrameLayout
+        android:id="@+id/thumbnailContainer"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:background="#E0E0E0">
+
+        <!-- Folder icon (will be replaced with thumbnail if video exists) -->
+        <ImageView
+            android:id="@+id/folderIcon"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@android:drawable/ic_menu_gallery"
+            android:tint="#FFA726"
+            android:scaleType="centerCrop"
+            android:contentDescription="Folder" />
+
+        <!-- Small folder icon overlay in corner -->
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="top|start"
+            android:layout_margin="4dp"
+            android:src="@android:drawable/ic_menu_gallery"
+            android:background="#DDFFFFFF"
+            android:padding="2dp"
+            android:tint="#FFA726"
+            android:contentDescription="Folder indicator" />
+
+        <!-- Item count badge -->
+        <TextView
+            android:id="@+id/videoCount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:layout_margin="4dp"
+            android:background="#CCFF9800"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:paddingTop="2dp"
+            android:paddingBottom="2dp"
+            android:textColor="@color/white"
+            android:textSize="10sp"
+            android:text="0 items" />
+
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/folderName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:textColor="@color/black"
+        android:ellipsize="end"
+        android:maxLines="2" />
+
+</LinearLayout>

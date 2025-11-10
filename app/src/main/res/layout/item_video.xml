@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="8dp"
+    android:background="?android:attr/selectableItemBackground">
+
+    <!-- Thumbnail container - square aspect ratio -->
+    <FrameLayout
+        android:id="@+id/thumbnailContainer"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:background="#E0E0E0">
+
+        <!-- Video thumbnail fills entire container -->
+        <ImageView
+            android:id="@+id/videoThumbnail"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@android:drawable/ic_media_play"
+            android:scaleType="centerCrop"
+            android:contentDescription="Video" />
+
+        <!-- Duration badge -->
+        <TextView
+            android:id="@+id/videoDuration"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:layout_margin="4dp"
+            android:background="#CC000000"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:paddingTop="2dp"
+            android:paddingBottom="2dp"
+            android:textColor="@color/white"
+            android:textSize="10sp"
+            android:text="00:00" />
+
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/videoName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:textColor="@color/black"
+        android:ellipsize="end"
+        android:maxLines="2" />
+
+</LinearLayout>

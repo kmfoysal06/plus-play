@@ -1,0 +1,66 @@
+name: Android CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    - name: Build with Gradle
+      run: ./gradlew assembleRelease --stacktrace
+
+    - name: Generate demo keystore
+      run: |
+        keytool -genkey -v -keystore demo-keystore.jks -alias demo-key -keyalg RSA -keysize 2048 -validity 10000 \
+          -storepass demo123 -keypass demo123 \
+          -dname "CN=Plus Play Demo, OU=Demo, O=Demo, L=Demo, S=Demo, C=US"
+
+    - name: Sign APK
+      run: |
+        BUILD_TOOLS_VERSION=$(ls $ANDROID_HOME/build-tools | sort -V | tail -n 1)
+        $ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION/apksigner sign \
+          --ks demo-keystore.jks \
+          --ks-key-alias demo-key \
+          --ks-pass pass:demo123 \
+          --key-pass pass:demo123 \
+          --out app/build/outputs/apk/release/plus-play-signed.apk \
+          app/build/outputs/apk/release/app-release-unsigned.apk
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: plus-play-release
+        path: app/build/outputs/apk/release/plus-play-signed.apk
+
+    - name: Create Release
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      uses: softprops/action-gh-release@v1
+      with:
+        files: app/build/outputs/apk/release/plus-play-signed.apk
+        tag_name: v1.0.${{ github.run_number }}
+        name: Release v1.0.${{ github.run_number }}
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
