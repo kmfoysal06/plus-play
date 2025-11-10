@@ -64,12 +64,20 @@ class PlayerActivity : AppCompatActivity() {
     private var isLocked = false
     private var subtitles: List<SubtitleEntry> = emptyList()
     private var currentSubtitlePath: String? = null
+    private var isUserExiting = false // Track if user is intentionally exiting
     
-    // Variables for accumulated seeking
+    // Variables for accumulated seeking with scroll tracking
     private var accumulatedSeekTime = 0 // in milliseconds
     private var lastSwipeDirection = 0 // 1 for forward, -1 for backward, 0 for none
     private var lastSwipeTime = 0L
     private val swipeResetDelay = 1000L // Reset accumulated seek after 1 second of no swiping
+    
+    // Variables for continuous scroll seeking
+    private var scrollStartX = 0f
+    private var scrollStartY = 0f
+    private var totalScrolledDistance = 0f
+    private val scrollThresholdPerSeek = 150f // Pixels to scroll for each 10s increment
+    private var isScrolling = false
     
     private val handler = Handler(Looper.getMainLooper())
     private val updateSeekBarRunnable = object : Runnable {
@@ -94,6 +102,9 @@ class PlayerActivity : AppCompatActivity() {
         private const val PREFS_NAME = "VideoPlayerPrefs"
         private const val KEY_VIDEO_POSITION = "video_position_"
         private const val KEY_WAS_PLAYING = "was_playing_"
+        private const val STATE_VIDEO_PATH = "state_video_path"
+        private const val STATE_VIDEO_POSITION = "state_video_position"
+        private const val STATE_WAS_PLAYING = "state_was_playing"
     }
     
     data class SubtitleEntry(
@@ -179,7 +190,10 @@ class PlayerActivity : AppCompatActivity() {
         btnRotate.setOnClickListener { toggleOrientation() }
         
         // Back button
-        btnBack.setOnClickListener { finish() }
+        btnBack.setOnClickListener { 
+            isUserExiting = true
+            finish() 
+        }
         
         // Settings button
         btnSettings.setOnClickListener { toggleSettingsDropdown() }
@@ -428,47 +442,79 @@ class PlayerActivity : AppCompatActivity() {
                 return true
             }
 
-            override fun onFling(
+            override fun onScroll(
                 e1: MotionEvent,
                 e2: MotionEvent,
-                velocityX: Float,
-                velocityY: Float
+                distanceX: Float,
+                distanceY: Float
             ): Boolean {
                 if (isLocked) return false
                 
                 val diffX = e2.x - e1.x
                 val diffY = e2.y - e1.y
                 
-                if (abs(diffX) > abs(diffY) && abs(diffX) > 100 && abs(velocityX) > 100) {
-                    val currentTime = System.currentTimeMillis()
-                    val direction = if (diffX > 0) 1 else -1 // 1 for forward, -1 for backward
-                    val seekIncrement = 10000 // 10 seconds
-                    
-                    // Check if this swipe is in the same direction as the last one and within the time window
-                    if (direction == lastSwipeDirection && (currentTime - lastSwipeTime) < swipeResetDelay) {
-                        // Accumulate seek time - add another 10 seconds in the same direction
-                        accumulatedSeekTime += direction * seekIncrement
-                        // Seek by the increment only
-                        seekRelative(direction * seekIncrement, false)
-                    } else {
-                        // Reset and start new accumulation
-                        accumulatedSeekTime = direction * seekIncrement
-                        lastSwipeDirection = direction
-                        // Seek by the increment
-                        seekRelative(direction * seekIncrement, false)
+                // Check if this is a horizontal scroll
+                if (abs(diffX) > abs(diffY) && abs(diffX) > 50) {
+                    if (!isScrolling) {
+                        // Start new scroll session
+                        isScrolling = true
+                        scrollStartX = e1.x
+                        scrollStartY = e1.y
+                        totalScrolledDistance = 0f
+                        
+                        // Reset accumulated seek for new gesture
+                        val currentTime = System.currentTimeMillis()
+                        if ((currentTime - lastSwipeTime) >= swipeResetDelay) {
+                            accumulatedSeekTime = 0
+                            lastSwipeDirection = 0
+                        }
                     }
                     
-                    lastSwipeTime = currentTime
+                    val direction = if (diffX > 0) 1 else -1
+                    totalScrolledDistance = abs(diffX)
                     
-                    // Show feedback with accumulated time
-                    showSeekFeedback(accumulatedSeekTime)
+                    // Calculate how many 10s increments based on scroll distance
+                    val numIncrements = (totalScrolledDistance / scrollThresholdPerSeek).toInt()
+                    val targetSeekTime = numIncrements * 10000 * direction
                     
-                    // Schedule reset of accumulated seek after delay
-                    handler.removeCallbacks(resetAccumulatedSeekRunnable)
-                    handler.postDelayed(resetAccumulatedSeekRunnable, swipeResetDelay)
+                    // Only update if we've crossed a new threshold
+                    if (targetSeekTime != 0 && targetSeekTime != accumulatedSeekTime) {
+                        // Check if direction changed
+                        if (direction != lastSwipeDirection && lastSwipeDirection != 0) {
+                            // Direction changed, reset
+                            accumulatedSeekTime = 0
+                        }
+                        
+                        // Calculate the increment to apply
+                        val increment = targetSeekTime - accumulatedSeekTime
+                        accumulatedSeekTime = targetSeekTime
+                        lastSwipeDirection = direction
+                        lastSwipeTime = System.currentTimeMillis()
+                        
+                        // Apply the seek increment
+                        seekRelative(increment, false)
+                        
+                        // Show feedback with accumulated time
+                        showSeekFeedback(accumulatedSeekTime)
+                        
+                        // Schedule reset of accumulated seek after delay
+                        handler.removeCallbacks(resetAccumulatedSeekRunnable)
+                        handler.postDelayed(resetAccumulatedSeekRunnable, swipeResetDelay)
+                    }
                     
                     return true
                 }
+                return false
+            }
+            
+            override fun onFling(
+                e1: MotionEvent,
+                e2: MotionEvent,
+                velocityX: Float,
+                velocityY: Float
+            ): Boolean {
+                // Reset scrolling flag on fling
+                isScrolling = false
                 return false
             }
 
@@ -533,12 +579,14 @@ class PlayerActivity : AppCompatActivity() {
             if (playlist != null && currentVideoIndex < playlist!!.size - 1) {
                 playNextVideo()
             } else {
+                isUserExiting = true
                 finish()
             }
         }
 
         videoView.setOnErrorListener { _, what, extra ->
             // Handle error
+            isUserExiting = true
             finish()
             true
         }
@@ -755,6 +803,11 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        // Reset scrolling flag when touch is released
+        if (event.action == MotionEvent.ACTION_UP || event.action == MotionEvent.ACTION_CANCEL) {
+            isScrolling = false
+        }
+        
         return if (gestureDetector.onTouchEvent(event)) {
             true
         } else {
@@ -783,10 +836,42 @@ class PlayerActivity : AppCompatActivity() {
         handler.post(updateSeekBarRunnable)
     }
 
+    override fun onBackPressed() {
+        isUserExiting = true
+        super.onBackPressed()
+    }
+    
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        // Save state when system kills the activity (e.g., Bluetooth, low memory)
+        outState.putString(STATE_VIDEO_PATH, videoPath)
+        outState.putInt(STATE_VIDEO_POSITION, videoView.currentPosition)
+        outState.putBoolean(STATE_WAS_PLAYING, isPlaying)
+    }
+    
+    override fun onRestoreInstanceState(savedInstanceState: Bundle) {
+        super.onRestoreInstanceState(savedInstanceState)
+        // Restore state when activity is recreated by system
+        // This ensures video doesn't restart after Bluetooth or other system events
+        val savedPath = savedInstanceState.getString(STATE_VIDEO_PATH)
+        if (savedPath != null && savedPath == videoPath) {
+            // Same video, restore position
+            val savedPos = savedInstanceState.getInt(STATE_VIDEO_POSITION, 0)
+            val wasPlaying = savedInstanceState.getBoolean(STATE_WAS_PLAYING, true)
+            
+            // Save to preferences so setupVideoView can restore
+            savePosition(savedPos)
+            saveWasPlaying(wasPlaying)
+        }
+    }
+    
     override fun onDestroy() {
         super.onDestroy()
-        // Clear saved position when leaving the activity
-        clearSavedPosition()
+        // Only clear saved position if user is intentionally exiting
+        // Don't clear if system is killing the activity (e.g., Bluetooth, rotation)
+        if (isUserExiting || isFinishing) {
+            clearSavedPosition()
+        }
         videoView.stopPlayback()
         handler.removeCallbacks(updateSeekBarRunnable)
         handler.removeCallbacks(hideControlsRunnable)
