@@ -5,11 +5,15 @@ A minimal, lightweight Android video player app written in Kotlin that provides 
 ## Features
 
 - **Video File Listing**: Scans and displays video files from device storage (.mp4, .mkv, .avi, .mov)
+- **Folder Navigation**: Browse videos organized by folders with instant loading (no lag)
 - **Intuitive Gestures**:
-  - Swipe left/right: Seek 10 seconds backward/forward
+  - Swipe left/right: Seek 10 seconds backward/forward (responsive 100px threshold)
   - Double-tap left/right: Seek 10 seconds backward/forward
   - Double-tap middle: Play/Pause
   - Single tap: Toggle system UI
+- **Playback Resume**: Automatically remembers playback position for last 3 videos
+  - Resume dialog offers "Resume" or "Start from Beginning" options
+  - Handles Bluetooth disconnect and system interruptions gracefully
 - **Subtitle Support**: Automatically loads .srt subtitle files with matching basename
 - **Full-Screen Mode**: Immersive video playback experience
 - **Rotation Support**: Handles device orientation changes
