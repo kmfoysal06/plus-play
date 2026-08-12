@@ -78,6 +78,7 @@
             android:textStyle="bold"
             android:textColor="@color/black"
             android:ellipsize="end"
+            android:fontFamily="@font/creatodisplay_regular"
             android:maxLines="2" />
 
     </LinearLayout>
