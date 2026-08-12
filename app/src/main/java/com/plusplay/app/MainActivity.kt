@@ -166,6 +166,17 @@ class MainActivity : AppCompatActivity() {
             R.id.showHiddenFilesRow
         )
 
+        val exitRow = view.findViewById<View>(
+            R.id.exitAppRow
+        )
+
+        exitRow.setOnClickListener {
+
+            popupWindow.dismiss()
+
+            showExitConfirmation()
+        }
+
         // Load saved value
         checkbox.isChecked = preferences.getBoolean(
             "show_hidden_files",
@@ -195,6 +206,18 @@ class MainActivity : AppCompatActivity() {
             0,
             0
         )
+    }
+
+    private fun showExitConfirmation() {
+
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Exit PlusPlay")
+            .setMessage("Are you sure you want to exit the app?")
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Exit") { _, _ ->
+                finishAffinity()
+            }
+            .show()
     }
 
     private val preferences by lazy {

@@ -24,11 +24,16 @@
         android:gravity="center_vertical"
         android:clickable="true"
         android:focusable="true">
-
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_pp_eye"
+            android:contentDescription="Exit" />
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:layout_marginStart="16dp"
             android:text="Show hidden files"
             android:textSize="16sp"
             android:textColor="@color/black" />
@@ -37,6 +42,38 @@
             android:id="@+id/showHiddenFilesCheckbox"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content" />
+
+    </LinearLayout>
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#E0E0E0"
+        android:layout_marginTop="8dp" />
+
+    <LinearLayout
+        android:id="@+id/exitAppRow"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:clickable="true"
+        android:focusable="true"
+        android:paddingStart="4dp"
+        android:paddingEnd="4dp">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_pp_exit"
+            android:contentDescription="Exit" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:text="Exit"
+            android:textSize="16sp"
+            android:textColor="@color/black" />
 
     </LinearLayout>
 
