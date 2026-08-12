@@ -641,7 +641,7 @@ class PlayerActivity : AppCompatActivity() {
     }
     
     private fun updatePlayPauseButton() {
-        val iconRes = if (isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play
+        val iconRes = if (!isPlaying) R.drawable.ic_pp_play else R.drawable.ic_pp_pause
         btnPlayPause.setImageResource(iconRes)
         btnCenterPlayPause.setImageResource(iconRes)
     }

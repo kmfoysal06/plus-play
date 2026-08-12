@@ -61,7 +61,7 @@
                 android:layout_height="48dp"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Back"
-                android:src="@android:drawable/ic_menu_revert"
+                android:src="@drawable/ic_arrow_back"
                 android:tint="@color/white" />
 
             <TextView
@@ -83,7 +83,7 @@
                 android:layout_height="48dp"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Rotate"
-                android:src="@android:drawable/ic_menu_rotate"
+                android:src="@drawable/ic_pp_path_rounded"
                 android:tint="@color/white" />
 
             <ImageButton
@@ -92,7 +92,7 @@
                 android:layout_height="48dp"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Settings"
-                android:src="@android:drawable/ic_menu_preferences"
+                android:src="@drawable/ic_pp_settings"
                 android:tint="@color/white" />
 
             <ImageButton
@@ -101,7 +101,7 @@
                 android:layout_height="48dp"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Lock"
-                android:src="@android:drawable/ic_lock_idle_lock"
+                android:src="@drawable/ic_pp_lock"
                 android:tint="@color/white" />
 
         </LinearLayout>
@@ -154,7 +154,7 @@
             android:layout_centerInParent="true"
             android:background="?android:attr/selectableItemBackgroundBorderless"
             android:contentDescription="Play/Pause"
-            android:src="@android:drawable/ic_media_pause"
+            android:src="@drawable/ic_pp_pause"
             android:tint="@color/white" />
 
         <!-- Bottom bar -->
@@ -214,7 +214,7 @@
                     android:layout_marginEnd="16dp"
                     android:background="?android:attr/selectableItemBackgroundBorderless"
                     android:contentDescription="Previous"
-                    android:src="@android:drawable/ic_media_previous"
+                    android:src="@drawable/ic_pp_skip_previous"
                     android:tint="@color/white" />
 
                 <ImageButton
@@ -224,7 +224,7 @@
                     android:layout_marginEnd="16dp"
                     android:background="?android:attr/selectableItemBackgroundBorderless"
                     android:contentDescription="Rewind 10s"
-                    android:src="@android:drawable/ic_media_rew"
+                    android:src="@drawable/ic_pp_rewind"
                     android:tint="@color/white" />
 
                 <ImageButton
@@ -235,7 +235,7 @@
                     android:layout_marginEnd="8dp"
                     android:background="?android:attr/selectableItemBackgroundBorderless"
                     android:contentDescription="Play/Pause"
-                    android:src="@android:drawable/ic_media_pause"
+                    android:src="@drawable/ic_pp_pause"
                     android:tint="@color/white" />
 
                 <ImageButton
@@ -245,7 +245,7 @@
                     android:layout_marginStart="16dp"
                     android:background="?android:attr/selectableItemBackgroundBorderless"
                     android:contentDescription="Forward 10s"
-                    android:src="@android:drawable/ic_media_ff"
+                    android:src="@drawable/ic_pp_fast_forward"
                     android:tint="@color/white" />
 
                 <ImageButton
@@ -255,7 +255,7 @@
                     android:layout_marginStart="16dp"
                     android:background="?android:attr/selectableItemBackgroundBorderless"
                     android:contentDescription="Next"
-                    android:src="@android:drawable/ic_media_next"
+                    android:src="@drawable/ic_pp_skip_next"
                     android:tint="@color/white" />
 
             </LinearLayout>
@@ -274,7 +274,7 @@
         android:layout_margin="16dp"
         android:background="?android:attr/selectableItemBackgroundBorderless"
         android:contentDescription="Unlock"
-        android:src="@android:drawable/ic_lock_idle_lock"
+        android:src="@drawable/ic_pp_lock_open"
         android:tint="@color/white"
         android:visibility="gone" />
 

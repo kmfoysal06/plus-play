@@ -19,6 +19,14 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import java.io.File
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
+import android.view.Gravity
+import android.view.Menu
+import android.view.MenuItem
+import android.widget.CheckBox
+import android.widget.PopupWindow
+import android.media.MediaMetadataRetriever
 
 class MainActivity : AppCompatActivity() {
 
@@ -38,7 +46,19 @@ class MainActivity : AppCompatActivity() {
     private val rootFolder = VideoFolder("Root", "/", mutableListOf(), mutableListOf())
     private val folderStack = mutableListOf<VideoFolder>()
 
+
     override fun onCreate(savedInstanceState: Bundle?) {
+
+        val storageDirectory = File("/storage")
+
+        storageDirectory.listFiles()?.forEach {
+            android.util.Log.d(
+                "PLUSPLAY",
+                "Storage volume: ${it.absolutePath}"
+            )
+        }
+
+
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
@@ -97,6 +117,89 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.main_menu, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+
+            R.id.action_settings -> {
+                showSettingsDrawer()
+                true
+            }
+
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
+    private fun showSettingsDrawer() {
+
+        val view = layoutInflater.inflate(
+            R.layout.bottom_sheet_settings,
+            null
+        )
+
+        val popupWindow = PopupWindow(
+            view,
+            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+            true
+        )
+
+        popupWindow.setBackgroundDrawable(
+            ColorDrawable(Color.WHITE)
+        )
+
+        popupWindow.isOutsideTouchable = true
+
+        popupWindow.animationStyle =
+            android.R.style.Animation_Dialog
+
+        val checkbox = view.findViewById<CheckBox>(
+            R.id.showHiddenFilesCheckbox
+        )
+
+        val row = view.findViewById<View>(
+            R.id.showHiddenFilesRow
+        )
+
+        // Load saved value
+        checkbox.isChecked = preferences.getBoolean(
+            "show_hidden_files",
+            false
+        )
+
+        checkbox.setOnCheckedChangeListener { _, isChecked ->
+
+            preferences.edit()
+                .putBoolean(
+                    "show_hidden_files",
+                    isChecked
+                )
+                .apply()
+
+            // Refresh the current folder
+            loadVideos(true)
+        }
+
+        row.setOnClickListener {
+            checkbox.isChecked = !checkbox.isChecked
+        }
+
+        popupWindow.showAtLocation(
+            findViewById(android.R.id.content),
+            Gravity.BOTTOM,
+            0,
+            0
+        )
+    }
+
+    private val preferences by lazy {
+        getSharedPreferences("plusplay_settings", MODE_PRIVATE)
+    }
     
     private fun displayFolder(folder: VideoFolder) {
         val items = mutableListOf<ListItem>()
@@ -119,7 +222,7 @@ class MainActivity : AppCompatActivity() {
         folderAdapter.updateItems(items)
         
         // Update title
-        title = if (folderStack.isEmpty()) "Plus Play" else folder.name
+        title = if (folderStack.isEmpty()) "PlusPlay" else folder.name
     }
 
     private fun checkPermissionAndLoadVideos() {
@@ -175,35 +278,144 @@ class MainActivity : AppCompatActivity() {
         progressBar.visibility = View.GONE
     }
 
-    private fun loadVideos() {
+    private fun loadVideos(
+        preserveCurrentFolder: Boolean = false
+    ) {
         permissionLayout.visibility = View.GONE
         progressBar.visibility = View.VISIBLE
-        
+
+        // Remember where the user currently is
+        val currentFolderPath = if (
+            preserveCurrentFolder &&
+            folderStack.isNotEmpty()
+        ) {
+            folderStack.last().path
+        } else {
+            null
+        }
+
         Thread {
             allVideos.clear()
             rootFolder.videos.clear()
             rootFolder.subFolders.clear()
-            folderStack.clear()
-            
+
+            // Don't clear folderStack when we want to preserve location
+            if (!preserveCurrentFolder) {
+                folderStack.clear()
+            }
+
             scanVideoFiles()
             organizeFolders()
-            
+
             runOnUiThread {
                 progressBar.visibility = View.GONE
-                
+
                 if (allVideos.isEmpty()) {
                     emptyView.visibility = View.VISIBLE
                     recyclerView.visibility = View.GONE
                 } else {
                     emptyView.visibility = View.GONE
                     recyclerView.visibility = View.VISIBLE
-                    displayFolder(rootFolder)
+
+                    if (currentFolderPath != null) {
+                        restoreFolder(currentFolderPath)
+                    } else {
+                        displayFolder(rootFolder)
+                    }
                 }
             }
         }.start()
     }
 
+    private fun getVideoDuration(videoPath: String): Long {
+        val retriever = MediaMetadataRetriever()
+
+        return try {
+            retriever.setDataSource(videoPath)
+
+            val duration = retriever.extractMetadata(
+                MediaMetadataRetriever.METADATA_KEY_DURATION
+            )
+
+            duration?.toLongOrNull() ?: 0L
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+            0L
+        } finally {
+            try {
+                retriever.release()
+            } catch (e: Exception) {
+                // Ignore release errors
+            }
+        }
+    }
+
+    private fun restoreFolder(path: String) {
+
+        if (path == "/") {
+            folderStack.clear()
+            displayFolder(rootFolder)
+            return
+        }
+
+        val newStack = mutableListOf<VideoFolder>()
+
+        fun findFolder(
+            folder: VideoFolder,
+            targetPath: String
+        ): Boolean {
+
+            if (folder.path == targetPath) {
+                newStack.add(folder)
+                return true
+            }
+
+            for (subFolder in folder.subFolders) {
+                if (findFolder(subFolder, targetPath)) {
+                    newStack.add(0, folder)
+                    return true
+                }
+            }
+
+            return false
+        }
+
+        for (folder in rootFolder.subFolders) {
+            if (findFolder(folder, path)) {
+                break
+            }
+        }
+
+        if (newStack.isNotEmpty()) {
+            folderStack.clear()
+
+            // Don't add Root itself to folderStack
+            folderStack.addAll(
+                newStack.filter { it.path != "/" }
+            )
+
+            displayFolder(folderStack.last())
+        } else {
+            // Folder disappeared after the refresh.
+            folderStack.clear()
+            displayFolder(rootFolder)
+        }
+    }
+
     private fun scanVideoFiles() {
+
+        val showHiddenFiles = preferences.getBoolean(
+            "show_hidden_files",
+            false
+        )
+
+        val videoSet = mutableSetOf<String>()
+
+        // ---------------------------------------------------------
+        // 1. Scan MediaStore
+        // ---------------------------------------------------------
+
         val projection = arrayOf(
             MediaStore.Video.Media._ID,
             MediaStore.Video.Media.DISPLAY_NAME,
@@ -219,28 +431,245 @@ class MainActivity : AppCompatActivity() {
             "${MediaStore.Video.Media.DISPLAY_NAME} ASC"
         )
 
-        val videoSet = mutableSetOf<String>()
-
         cursor?.use {
-            val nameColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
-            val dataColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
-            val durationColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
+
+            val nameColumn =
+                it.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
+
+            val dataColumn =
+                it.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
+
+            val durationColumn =
+                it.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
 
             while (it.moveToNext()) {
+
                 val name = it.getString(nameColumn)
                 val path = it.getString(dataColumn)
                 val duration = it.getLong(durationColumn)
-                
-                val hasValidExtension = SUPPORTED_VIDEO_EXTENSIONS.any { ext -> 
-                    path.lowercase().endsWith(ext)
+
+                if (path.isNullOrEmpty()) {
+                    continue
                 }
-                
-                if (hasValidExtension && !videoSet.contains(path)) {
+
+                val isHidden = name.startsWith(".")
+
+                val hasValidExtension =
+                    SUPPORTED_VIDEO_EXTENSIONS.any { ext ->
+                        path.lowercase().endsWith(ext)
+                    }
+
+                if (
+                    hasValidExtension &&
+                    !videoSet.contains(path) &&
+                    (showHiddenFiles || !isHidden)
+                ) {
+
                     videoSet.add(path)
+
                     val file = File(path)
                     val folderPath = file.parent ?: ""
-                    allVideos.add(VideoFile(name, path, duration, folderPath))
+                    allVideos.add(
+                        VideoFile(
+                            name = name,
+                            path = path,
+                            duration = duration,
+                            folderPath = folderPath
+                        )
+                    )
                 }
+            }
+        }
+
+        // ---------------------------------------------------------
+        // 2. Scan filesystem
+        //
+        // Only do this when hidden files are enabled.
+        // This finds videos that MediaStore doesn't know about.
+        // ---------------------------------------------------------
+
+        if (showHiddenFiles) {
+            val storageRoots = mutableListOf<File>()
+
+// Internal shared storage
+            storageRoots.add(
+                android.os.Environment.getExternalStorageDirectory()
+            )
+
+// Other mounted storage volumes
+            val storageDirectory = File("/storage")
+
+            storageDirectory.listFiles()?.forEach { storageRoot ->
+
+                if (!storageRoot.isDirectory) {
+                    return@forEach
+                }
+
+                if (
+                    storageRoot.name == "self" ||
+                    storageRoot.name == "emulated"
+                ) {
+                    return@forEach
+                }
+
+                storageRoots.add(storageRoot)
+            }
+
+            // Scan every storage volume
+            for (storageRoot in storageRoots) {
+
+                scanFilesystemForVideos(
+                    directory = storageRoot,
+                    videoSet = videoSet
+                )
+            }
+        }
+    }
+
+    private fun scanFilesystemForVideos(
+        directory: File,
+        videoSet: MutableSet<String>
+    ) {
+
+        if (!directory.exists() || !directory.isDirectory) {
+            return
+        }
+
+        val files = try {
+            directory.listFiles()
+        } catch (e: SecurityException) {
+            null
+        }
+
+        if (files == null) {
+            return
+        }
+
+        for (file in files) {
+
+            try {
+
+                if (file.isDirectory) {
+
+                    scanFilesystemForVideos(
+                        directory = file,
+                        videoSet = videoSet
+                    )
+
+                    continue
+                }
+
+                val name = file.name
+                val path = file.absolutePath
+
+                val hasValidExtension =
+                    SUPPORTED_VIDEO_EXTENSIONS.any { ext ->
+                        path.lowercase().endsWith(ext)
+                    }
+
+                if (!hasValidExtension) {
+                    continue
+                }
+
+                // At this point hidden files ARE allowed because
+                // this function is only called when the setting is ON.
+                if (!videoSet.contains(path)) {
+
+                    videoSet.add(path)
+
+                    val folderPath = file.parent ?: ""
+
+                    val duration = getVideoDuration(path)
+                    allVideos.add(
+                        VideoFile(
+                            name = name,
+                            path = path,
+                            duration = duration,
+                            folderPath = folderPath
+                        )
+                    )
+                }
+
+            } catch (e: SecurityException) {
+                // Android denied access to this particular file/folder.
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private fun scanDirectoryForHiddenVideos(
+        directory: File,
+        videoSet: MutableSet<String>
+    ) {
+
+        if (!directory.exists() || !directory.isDirectory) {
+            return
+        }
+
+        val files = try {
+            directory.listFiles()
+        } catch (e: SecurityException) {
+            null
+        }
+
+        files ?: return
+
+        for (file in files) {
+
+            try {
+
+                if (file.isDirectory) {
+
+                    // Recursively scan subdirectories
+                    scanDirectoryForHiddenVideos(
+                        directory = file,
+                        videoSet = videoSet
+                    )
+
+                } else {
+
+                    val name = file.name
+                    val path = file.absolutePath
+
+                    val isHidden = name.startsWith(".")
+
+                    val hasValidExtension =
+                        SUPPORTED_VIDEO_EXTENSIONS.any { ext ->
+                            path.lowercase().endsWith(ext)
+                        }
+
+                    /*
+                     * We only need the filesystem scan for hidden files.
+                     *
+                     * Normal files have already been obtained from MediaStore.
+                     */
+                    if (
+                        isHidden &&
+                        hasValidExtension &&
+                        !videoSet.contains(path)
+                    ) {
+
+                        videoSet.add(path)
+
+                        val folderPath =
+                            file.parent ?: ""
+                        val duration = getVideoDuration(path)
+                        allVideos.add(
+                            VideoFile(
+                                name = name,
+                                path = path,
+                                duration = duration,
+                                folderPath = folderPath
+                            )
+                        )
+                    }
+                }
+
+            } catch (e: SecurityException) {
+                // Ignore directories/files that Android won't let us access.
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
     }
