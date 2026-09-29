@@ -1,0 +1,6 @@
+- Fastlane metadata and F-Droid release preparation
+- Offline video player with fast folder navigation
+- Responsive swipe and double-tap gestures for seeking and play/pause
+- Automatic .srt subtitle loading
+- Playback resume memory with prompt dialog
+- Immersive full-screen playback and rotation support
