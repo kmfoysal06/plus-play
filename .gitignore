@@ -61,3 +61,6 @@ Thumbs.db
 
 # Submodules / cloned repositories
 fdroiddata/
+keystore_base64.txt
+*.keystore
+.agents/

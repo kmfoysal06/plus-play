@@ -30,20 +30,32 @@ jobs:
     - name: Build with Gradle
       run: ./gradlew assembleRelease --stacktrace
 
-    - name: Generate demo keystore
+    - name: Prepare Keystore
+      env:
+        KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
       run: |
-        keytool -genkey -v -keystore demo-keystore.jks -alias demo-key -keyalg RSA -keysize 2048 -validity 10000 \
-          -storepass demo123 -keypass demo123 \
-          -dname "CN=Plus Play Demo, OU=Demo, O=Demo, L=Demo, S=Demo, C=US"
+        if [ -n "$KEYSTORE_BASE64" ]; then
+          echo "$KEYSTORE_BASE64" | base64 --decode > release.jks
+          echo "KEYSTORE_PATH=release.jks" >> $GITHUB_ENV
+          echo "KEY_ALIAS=plusplay" >> $GITHUB_ENV
+          echo "KEY_PASS=plusplay12345" >> $GITHUB_ENV
+        else
+          keytool -genkey -v -keystore demo-keystore.jks -alias demo-key -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass demo123 -keypass demo123 \
+            -dname "CN=Plus Play Demo, OU=Demo, O=Demo, L=Demo, S=Demo, C=US"
+          echo "KEYSTORE_PATH=demo-keystore.jks" >> $GITHUB_ENV
+          echo "KEY_ALIAS=demo-key" >> $GITHUB_ENV
+          echo "KEY_PASS=demo123" >> $GITHUB_ENV
+        fi
 
     - name: Sign APK
       run: |
         BUILD_TOOLS_VERSION=$(ls $ANDROID_HOME/build-tools | sort -V | tail -n 1)
         $ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION/apksigner sign \
-          --ks demo-keystore.jks \
-          --ks-key-alias demo-key \
-          --ks-pass pass:demo123 \
-          --key-pass pass:demo123 \
+          --ks "$KEYSTORE_PATH" \
+          --ks-key-alias "$KEY_ALIAS" \
+          --ks-pass pass:"$KEY_PASS" \
+          --key-pass pass:"$KEY_PASS" \
           --out app/build/outputs/apk/release/plus-play-signed.apk \
           app/build/outputs/apk/release/app-release-unsigned.apk
 
