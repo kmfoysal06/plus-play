@@ -1,0 +1,2 @@
+- Enable R8 code optimization and resource shrinking
+- Update the build toolchain for JDK 21
