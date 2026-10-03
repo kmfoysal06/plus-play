@@ -1,0 +1,2 @@
+- Fix release signing for F-Droid reproducible-build verification
+- Pin APK signing to Android build-tools 34.0.0

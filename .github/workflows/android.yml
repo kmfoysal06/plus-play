@@ -21,12 +21,6 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install reproducible signing tools
-        run: sdkmanager 'build-tools;34.0.0'
-
       - name: Validate release tag
         shell: bash
         run: |
@@ -69,6 +63,7 @@ jobs:
         run: |
           set -euo pipefail
           apksigner="$ANDROID_HOME/build-tools/34.0.0/apksigner"
+          test -x "$apksigner"
           unsigned_apk="app/build/outputs/apk/release/app-release-unsigned.apk"
           signed_apk="app/build/outputs/apk/release/plus-play-signed.apk"
           "$apksigner" sign \
