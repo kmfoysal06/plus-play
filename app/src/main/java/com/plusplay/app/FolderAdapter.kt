@@ -14,6 +14,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.content.ContentUris
+import android.os.Build
+import android.provider.MediaStore
+import android.util.Size
 
 sealed class ListItem {
     data class FolderItem(val folder: VideoFolder) : ListItem()
@@ -180,7 +184,7 @@ class FolderAdapter(
                     holder.folderIcon.alpha = 1.0f
 
                     loadThumbnail(
-                        directVideo.path,
+                        directVideo,
                         holder.folderIcon
                     )
 
@@ -230,7 +234,7 @@ class FolderAdapter(
                  * Load the actual video thumbnail asynchronously.
                  */
                 loadThumbnail(
-                    videoItem.video.path,
+                    videoItem.video,
                     holder.videoThumbnail
                 )
             }
@@ -271,71 +275,80 @@ class FolderAdapter(
      * the thumbnail to appear on the wrong item.
      */
     private fun loadThumbnail(
-        videoPath: String,
+        video: VideoFile,
         imageView: ImageView
     ) {
+        val context = imageView.context
         CoroutineScope(Dispatchers.IO).launch {
 
             var bitmap: Bitmap? = null
-            var retriever: MediaMetadataRetriever? = null
 
             try {
-                retriever = MediaMetadataRetriever()
-
-                retriever.setDataSource(videoPath)
-
-                /*
-                 * First try the beginning of the video.
-                 */
-                bitmap = retriever.getFrameAtTime(
-                    0,
-                    MediaMetadataRetriever.OPTION_CLOSEST_SYNC
-                )
-
-                /*
-                 * If the first frame cannot be retrieved,
-                 * try around one second into the video.
-                 */
-                if (bitmap == null) {
-                    bitmap = retriever.getFrameAtTime(
-                        1_000_000,
-                        MediaMetadataRetriever.OPTION_CLOSEST
-                    )
+                if (video.mediaStoreId != null) {
+                    val uri = ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, video.mediaStoreId)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        try {
+                            bitmap = context.contentResolver.loadThumbnail(uri, Size(512, 512), null)
+                        } catch (e: Exception) {
+                            // Ignored, fallback to retriever
+                        }
+                    } else {
+                        try {
+                            @Suppress("DEPRECATION")
+                            bitmap = MediaStore.Video.Thumbnails.getThumbnail(
+                                context.contentResolver,
+                                video.mediaStoreId,
+                                MediaStore.Video.Thumbnails.MINI_KIND,
+                                null
+                            )
+                        } catch (e: Exception) {
+                            // Ignored
+                        }
+                    }
                 }
 
-                /*
-                 * Final fallback: let Android choose a frame.
-                 */
+                // Fallback to MediaMetadataRetriever
                 if (bitmap == null) {
-                    bitmap = retriever.frameAtTime
-                }
+                    var retriever: MediaMetadataRetriever? = null
+                    try {
+                        retriever = MediaMetadataRetriever()
+                        retriever.setDataSource(video.path)
 
+                        bitmap = retriever.getFrameAtTime(
+                            0,
+                            MediaMetadataRetriever.OPTION_CLOSEST_SYNC
+                        )
+
+                        if (bitmap == null) {
+                            bitmap = retriever.getFrameAtTime(
+                                1_000_000,
+                                MediaMetadataRetriever.OPTION_CLOSEST
+                            )
+                        }
+
+                        if (bitmap == null) {
+                            bitmap = retriever.frameAtTime
+                        }
+
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    } finally {
+                        try {
+                            retriever?.release()
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
-
-            } finally {
-                try {
-                    retriever?.release()
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
             }
 
             if (bitmap != null) {
 
                 withContext(Dispatchers.Main) {
 
-                    /*
-                     * IMPORTANT:
-                     *
-                     * RecyclerView may have reused this ImageView
-                     * for another video/folder while the thumbnail
-                     * was being generated.
-                     *
-                     * Only apply the bitmap if this ImageView
-                     * still belongs to the same video.
-                     */
-                    if (imageView.tag == videoPath) {
+                    if (imageView.tag == video.path) {
                         imageView.imageTintList = null
                         imageView.setImageBitmap(bitmap)
 

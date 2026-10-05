@@ -455,6 +455,9 @@ class MainActivity : AppCompatActivity() {
 
         cursor?.use {
 
+            val idColumn =
+                it.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
+                
             val nameColumn =
                 it.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
 
@@ -466,6 +469,7 @@ class MainActivity : AppCompatActivity() {
 
             while (it.moveToNext()) {
 
+                val id = it.getLong(idColumn)
                 val name = it.getString(nameColumn)
                 val path = it.getString(dataColumn)
                 val duration = it.getLong(durationColumn)
@@ -496,7 +500,8 @@ class MainActivity : AppCompatActivity() {
                             name = name,
                             path = path,
                             duration = duration,
-                            folderPath = folderPath
+                            folderPath = folderPath,
+                            mediaStoreId = id
                         )
                     )
                 }
@@ -706,23 +711,23 @@ class MainActivity : AppCompatActivity() {
             if (folderPath.isNotEmpty()) {
                 val folder = folderMap.getOrPut(folderPath) {
                     val folderFile = File(folderPath)
-                    VideoFolder(folderFile.name, folderPath, mutableListOf(), mutableListOf())
+                    
+                    // Rename external storage root (e.g. /storage/emulated/0) to something more friendly
+                    val folderName = if (folderFile.name == "0" && folderPath.contains("emulated")) {
+                        "Internal Storage"
+                    } else {
+                        folderFile.name
+                    }
+                    
+                    VideoFolder(folderName, folderPath, mutableListOf(), mutableListOf())
                 }
                 folder.videos.add(video)
             }
         }
         
-        // Build folder hierarchy
+        // Build flat folder hierarchy (place all folders directly at root)
         folderMap.values.forEach { folder ->
-            val parentPath = File(folder.path).parent
-            
-            if (parentPath != null && folderMap.containsKey(parentPath)) {
-                // Add to parent folder
-                folderMap[parentPath]?.subFolders?.add(folder)
-            } else {
-                // Add to root
-                rootFolder.subFolders.add(folder)
-            }
+            rootFolder.subFolders.add(folder)
         }
     }
 

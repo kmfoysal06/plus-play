@@ -8,7 +8,8 @@ data class VideoFile(
     val name: String,
     val path: String,
     val duration: Long = 0,
-    val folderPath: String = ""
+    val folderPath: String = "",
+    val mediaStoreId: Long? = null
 ) : Parcelable
 
 data class VideoFolder(
