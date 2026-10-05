@@ -1,0 +1,3 @@
+- Dramatically improved video thumbnail loading speed by leveraging OS cache
+- Fixed the "0" folder bug by implementing a smart nested folder hierarchy
+- Added internal storage and SD card icons to top-level directories
