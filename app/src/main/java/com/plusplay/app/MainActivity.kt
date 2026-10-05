@@ -703,31 +703,70 @@ class MainActivity : AppCompatActivity() {
     
     private fun organizeFolders() {
         val folderMap = mutableMapOf<String, VideoFolder>()
-        
-        // Group videos by folder
+        val internalStoragePath = android.os.Environment.getExternalStorageDirectory().absolutePath
+
+        fun getFolder(path: String): VideoFolder {
+            return folderMap.getOrPut(path) {
+                val file = File(path)
+                var folderName = file.name
+                var sType = 0
+                
+                // Identify if this is a storage root
+                if (path == internalStoragePath) {
+                    folderName = "Internal Storage"
+                    sType = 1
+                } else if (path.matches(Regex("^/storage/[A-Za-z0-9]{4}-[A-Za-z0-9]{4}$"))) {
+                    folderName = "SD Card"
+                    sType = 2
+                }
+
+                VideoFolder(folderName, path, mutableListOf(), mutableListOf(), sType)
+            }
+        }
+
+        // Group videos by folder and ensure all parent folders exist up to storage root
         allVideos.forEach { video ->
-            val folderPath = video.folderPath
-            
-            if (folderPath.isNotEmpty()) {
-                val folder = folderMap.getOrPut(folderPath) {
-                    val folderFile = File(folderPath)
+            var currentPath = video.folderPath
+            if (currentPath.isNotEmpty()) {
+                val folder = getFolder(currentPath)
+                folder.videos.add(video)
+                
+                // Traverse up to the storage root
+                while (currentPath.isNotEmpty() && currentPath != "/" && currentPath != "/storage" && currentPath != "/storage/emulated") {
+                    val parentFile = File(currentPath).parentFile ?: break
+                    val parentPath = parentFile.absolutePath
                     
-                    // Rename external storage root (e.g. /storage/emulated/0) to something more friendly
-                    val folderName = if (folderFile.name == "0" && folderPath.contains("emulated")) {
-                        "Internal Storage"
-                    } else {
-                        folderFile.name
+                    if (parentPath == "/" || parentPath == "/storage" || parentPath == "/storage/emulated") {
+                        break
                     }
                     
-                    VideoFolder(folderName, folderPath, mutableListOf(), mutableListOf())
+                    val parentFolder = getFolder(parentPath)
+                    val currentFolder = getFolder(currentPath)
+                    
+                    // Add current to parent if not already added
+                    if (!parentFolder.subFolders.any { it.path == currentFolder.path }) {
+                        parentFolder.subFolders.add(currentFolder)
+                    }
+                    
+                    // Stop if we reach a storage root
+                    if (currentPath == internalStoragePath || currentPath.matches(Regex("^/storage/[A-Za-z0-9]{4}-[A-Za-z0-9]{4}$"))) {
+                        break
+                    }
+                    
+                    currentPath = parentPath
                 }
-                folder.videos.add(video)
             }
         }
         
-        // Build flat folder hierarchy (place all folders directly at root)
+        // Attach top-level roots to the main rootFolder
         folderMap.values.forEach { folder ->
-            rootFolder.subFolders.add(folder)
+            val parentFile = File(folder.path).parentFile
+            val parentPath = parentFile?.absolutePath
+            
+            // It's a top-level folder if its parent is null, or parent isn't in folderMap
+            if (parentPath == null || !folderMap.containsKey(parentPath)) {
+                rootFolder.subFolders.add(folder)
+            }
         }
     }
 

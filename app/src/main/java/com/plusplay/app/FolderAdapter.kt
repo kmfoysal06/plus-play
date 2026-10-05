@@ -49,6 +49,7 @@ class FolderAdapter(
         val videoCount: TextView = view.findViewById(R.id.videoCount)
         val folderIcon: ImageView = view.findViewById(R.id.folderIcon)
         val thumbnailContainer: View = view.findViewById(R.id.thumbnailContainer)
+        val storageIcon: ImageView = view.findViewById(R.id.storageIcon)
 
         init {
             // Make thumbnail container square
@@ -147,6 +148,16 @@ class FolderAdapter(
 
                 holder.videoCount.text =
                     "${folder.videos.size + folder.subFolders.size} items"
+
+                if (folder.storageType == 1) {
+                    holder.storageIcon.visibility = View.VISIBLE
+                    holder.storageIcon.setImageResource(R.drawable.ic_smartphone)
+                } else if (folder.storageType == 2) {
+                    holder.storageIcon.visibility = View.VISIBLE
+                    holder.storageIcon.setImageResource(R.drawable.ic_sd_card)
+                } else {
+                    holder.storageIcon.visibility = View.GONE
+                }
 
                 holder.itemView.setOnClickListener {
                     onItemClick(item)

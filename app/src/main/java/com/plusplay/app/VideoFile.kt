@@ -16,7 +16,8 @@ data class VideoFolder(
     val name: String,
     val path: String,
     val videos: MutableList<VideoFile> = mutableListOf(),
-    val subFolders: MutableList<VideoFolder> = mutableListOf()
+    val subFolders: MutableList<VideoFolder> = mutableListOf(),
+    var storageType: Int = 0 // 0 = normal, 1 = internal, 2 = sdcard
 ) {
     fun getFirstVideoPath(): String? {
         // Try to get from direct videos first
