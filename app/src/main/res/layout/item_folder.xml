@@ -51,6 +51,19 @@
             android:textSize="10sp"
             android:text="0 items" />
 
+        <!-- Storage Type indicator badge -->
+        <ImageView
+            android:id="@+id/storageIcon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="top|start"
+            android:layout_margin="4dp"
+            android:background="#99000000"
+            android:padding="4dp"
+            android:tint="@color/white"
+            android:contentDescription="Storage Indicator"
+            android:visibility="gone" />
+
     </FrameLayout>
 
     <LinearLayout
@@ -67,14 +80,6 @@
             android:layout_marginEnd="4dp"
             android:src="@drawable/ic_arrow_back"
             android:contentDescription="Go back"
-            android:visibility="gone" />
-
-        <ImageView
-            android:id="@+id/storageIcon"
-            android:layout_width="16dp"
-            android:layout_height="16dp"
-            android:layout_marginEnd="4dp"
-            android:contentDescription="Storage Indicator"
             android:visibility="gone" />
 
         <TextView
