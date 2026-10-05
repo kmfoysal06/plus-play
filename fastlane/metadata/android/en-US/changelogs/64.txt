@@ -1,0 +1,2 @@
+- Fix Thumbnail loading Issue
+- Fix Root Directory renaming to 0 issue
