@@ -1,0 +1,1 @@
+- Moved the storage type indicator icon to the top-left corner of the folder thumbnail
